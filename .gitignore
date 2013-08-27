@@ -1,0 +1,15 @@
+*.log
+*.pot
+*.sw[po]
+*.py[co]
+*.sqlite3
+*.vagrant
+*.coverage
+
+local_settings.py
+
+*.egg-info/
+*.cache/
+
+docs/build/
+sandbox/public/

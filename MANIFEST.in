@@ -1,0 +1,5 @@
+include *.rst
+include LICENSE
+recursive-include omws/templates *.txt *.html
+recursive-include omws/static *
+recursive-include omws *.json
