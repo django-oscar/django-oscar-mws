@@ -1,0 +1,144 @@
+<?xml version="1.0"?>
+<!-- Revision="$Revision: #1 $" -->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+	<!--
+    $Date: 2012/05/09 $
+    AMAZON.COM CONFIDENTIAL.  This document and the information contained in it are
+    confidential and proprietary information of Amazon.com and may not be reproduced, 
+    distributed or used, in whole or in part, for any purpose other than as necessary 
+    to list products for sale on the www.amazon.com web site pursuant to an agreement 
+    with Amazon.com.
+    -->
+	<xsd:include schemaLocation="amzn-base.xsd"/>
+	<!--
+    Please read the corresponding documentation that contains the recommended values for elements
+    of type StringNotNull.
+    -->
+	<xsd:element name="Arts">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="ProductType">
+					<xsd:complexType>
+						<xsd:choice>
+							<xsd:element ref="FineArt"/>
+							<xsd:element ref="FineArtEditioned"/>
+						</xsd:choice>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="VariationData" minOccurs="0">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="Parentage">
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:string">
+										<xsd:enumeration value="parent"/>
+										<xsd:enumeration value="child"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+							</xsd:element>
+							<xsd:element name="VariationTheme" minOccurs="0">
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:string">
+										<xsd:enumeration value="SizeName"/>
+										<xsd:enumeration value="FrameMaterial"/>
+										<xsd:enumeration value="Size-Material"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+							</xsd:element>
+						</xsd:sequence>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="FineArt">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="ArtworkType" type="StringNotNull" minOccurs="1"/>
+				<xsd:element name="Artist" type="StringNotNull" minOccurs="1"/>
+				<xsd:element name="ArtistBiography" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="ArtworkMedium" type="StringNotNull" minOccurs="1"/>
+				<xsd:element name="Date" type="xsd:dateTime" minOccurs="1"/>
+				<xsd:element name="ArtworkSubMedium" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="ArchivalGrading" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="SignedBy" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="SignatureLocation" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="CertificateOfAuthenticity" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="CertificateOfAuthenticityNumber" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="FrameMaterial" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="HangingHardwareIncluded" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="GlassType" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="MattingDescription" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Framed" type="xsd:boolean" minOccurs="1"/>
+				<xsd:element name="Subject" type="StringNotNull" minOccurs="0" maxOccurs="3"/>
+				<xsd:element name="SubjectLocation" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Color" type="StringNotNull" minOccurs="0" maxOccurs="2"/>
+				<xsd:element name="ColorFamily" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Adult" type="xsd:boolean" minOccurs="0"/>
+				<xsd:element name="Style" type="StringNotNull" minOccurs="0" maxOccurs="2"/>
+				<xsd:element name="Period" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="ExhibitionHistory" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Literature" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Provenance" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="CountryOfOrigin" type="CountryOfOriginType" minOccurs="0"/>
+				<xsd:element name="RegionOfOrigin" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="SizeName" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="FramedHeight" type="LengthDimension" minOccurs="0"/>
+				<xsd:element name="FramedWidth" type="LengthDimension" minOccurs="0"/>
+				<xsd:element name="FramedDepth" type="LengthDimension" minOccurs="0"/>
+				<xsd:element name="Shape" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Orientation" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="SaleType" type="StringNotNull" minOccurs="1"/>
+				<xsd:element name="IsCrated" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="IsVeryHighValue" type="xsd:boolean" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="FineArtEditioned">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="ArtworkType" type="StringNotNull" minOccurs="1"/>
+				<xsd:element name="Artist" type="StringNotNull" minOccurs="1"/>
+				<xsd:element name="ArtistBiography" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="ArtworkMedium" type="StringNotNull" minOccurs="1"/>
+				<xsd:element name="Date" type="xsd:dateTime" minOccurs="1"/>
+				<xsd:element name="ArtworkSubMedium" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="ArchivalGrading" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="SignedBy" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="SignatureLocation" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="CertificateOfAuthenticity" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="CertificateOfAuthenticityNumber" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="FrameMaterial" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="HangingHardwareIncluded" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="GlassType" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="MattingDescription" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Framed" type="xsd:boolean" minOccurs="1"/>
+				<xsd:element name="Subject" type="StringNotNull" minOccurs="0" maxOccurs="3"/>
+				<xsd:element name="SubjectLocation" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Color" type="StringNotNull" minOccurs="0" maxOccurs="2"/>
+				<xsd:element name="ColorFamily" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Adult" type="xsd:boolean" minOccurs="0"/>
+				<xsd:element name="Style" type="StringNotNull" minOccurs="0" maxOccurs="2"/>
+				<xsd:element name="Period" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="ExhibitionHistory" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Literature" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Provenance" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="CountryOfOrigin" type="CountryOfOriginType" minOccurs="0"/>
+				<xsd:element name="RegionOfOrigin" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="LimitedEditionSize" type="xsd:positiveInteger" minOccurs="1"/>
+				<xsd:element name="LimitedEditionRangeStart" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="LimitedEditionRangeEnd" type="xsd:positiveInteger" minOccurs="0"/>
+				<xsd:element name="PrintDate" type="xsd:dateTime" minOccurs="0"/>
+				<xsd:element name="SizeName" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="FramedHeight" type="LengthDimension" minOccurs="0"/>
+				<xsd:element name="FramedWidth" type="LengthDimension" minOccurs="0"/>
+				<xsd:element name="FramedDepth" type="LengthDimension" minOccurs="0"/>
+				<xsd:element name="Shape" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="Orientation" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="SaleType" type="StringNotNull" minOccurs="1"/>
+				<xsd:element name="IsCrated" type="StringNotNull" minOccurs="0"/>
+				<xsd:element name="IsVeryHighValue" type="xsd:boolean" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+</xsd:schema>

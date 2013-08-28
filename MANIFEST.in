@@ -1,4 +1,5 @@
 include *.rst
+include *.xsd
 include LICENSE
 recursive-include omws/templates *.txt *.html
 recursive-include omws/static *
