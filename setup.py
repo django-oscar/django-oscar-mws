@@ -21,6 +21,7 @@ setup(
         'django-oscar>=0.5',
         'boto>=2.10.0',
         'lxml>=3.2.3',
+        'python-dateutil>=2.1',
     ],
     setup_requires=[
         'versiontools>=1.8',

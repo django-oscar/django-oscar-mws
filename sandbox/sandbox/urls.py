@@ -2,18 +2,18 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls import patterns, include, url
 
-import fancypages.urls
-from fancypages import views
+from oscar.app import shop
+from oscar_fancypages.fancypages.views import FancyHomeView
+
 
 admin.autodiscover()
 
-
 urlpatterns = patterns('',
-    url(r'^$', views.HomeView.as_view(), name='home'),
+    url(r'^$', FancyHomeView.as_view(), name="home"),
 
     url(r'^admin/', include(admin.site.urls)),
-
-    url(r'^', include(fancypages.urls)),
+    url(r'', include(shop.urls)),
+    url(r'', include('oscar_fancypages.urls')),
 )
 
 if settings.DEBUG:

@@ -7,7 +7,7 @@ location = lambda x: os.path.join(
 )
 sandbox = lambda x: location("sandbox/%s" % x)
 
-from oscar.core import get_core_apps
+from oscar import get_core_apps
 
 
 def pytest_configure():
@@ -20,6 +20,7 @@ def pytest_configure():
                 'NAME': ':memory:',
             }
         },
+        USE_TZ=True,
         MEDIA_ROOT=sandbox('public/media'),
         MEDIA_URL='/media/',
         STATIC_URL='/static/',
@@ -63,10 +64,15 @@ def pytest_configure():
             'django.contrib.messages',
             'django.contrib.staticfiles',
             'django.contrib.admin',
+
+            'oscar_mws',
         ] + get_core_apps(),
         AUTHENTICATION_BACKENDS=(
             'django.contrib.auth.backends.ModelBackend',
         ),
+        AWS_ACCESS_KEY_ID='fakeaccesskey',
+        AWS_SECRET_ACCESS_KEY='fakesecret',
+        MWS_MERCHANT_ID='fakemerchantid',
         COMPRESS_ENABLED=True,
         COMPRESS_OFFLINE=False,
         COMPRESS_PRECOMPILERS=(
@@ -75,5 +81,10 @@ def pytest_configure():
         LOGIN_REDIRECT_URL='/accounts/',
         APPEND_SLASH=True,
         SITE_ID=1,
+        HAYSTACK_CONNECTIONS={
+            'default': {
+                'ENGINE': 'haystack.backends.simple_backend.SimpleEngine',
+            },
+        },
         **OSCAR_SETTINGS
     )
