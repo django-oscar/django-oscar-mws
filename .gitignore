@@ -5,6 +5,7 @@
 *.sqlite3
 *.vagrant
 *.coverage
+*.egg
 
 local_settings.py
 
