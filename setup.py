@@ -19,9 +19,11 @@ setup(
     include_package_data=True,
     install_requires=[
         'django-oscar>=0.5',
+        'boto>=2.10.0',
+        'lxml>=3.2.3',
     ],
     setup_requires=[
-        'versiontools >= 1.8',
+        'versiontools>=1.8',
     ],
     # See http://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
