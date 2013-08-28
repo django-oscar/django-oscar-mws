@@ -94,8 +94,10 @@ FEED_TYPES = (
 
 
 class AbstractFeedSubmission(models.Model):
-
-    submission_id = models.PositiveIntegerField(_("Submission ID"))
+    submission_id = models.PositiveIntegerField(
+        _("Submission ID"),
+        unique=True
+    )
     feed_type = models.CharField(
         _("Feed type"),
         max_length=200,
@@ -118,6 +120,47 @@ class AbstractFeedSubmission(models.Model):
 
     def __unicode__(self):
         return "Feed #{0}".format(self.submission_id)
+
+    class Meta:
+        abstract = True
+
+
+class AbstractFeedReport(models.Model):
+    submission = models.OneToOneField(
+        'oscar_mws.FeedSubmission',
+        verbose_name=_("Feed submission"),
+        related_name='feed_report',
+    )
+
+    class Meta:
+        abstract = True
+
+
+class AbstractFeedError(models.Model):
+    message_id = models.PositiveIntegerField(_("Message ID"))
+    message_code = models.CharField(_("Message code"), max_length=100)
+    description = models.TextField(_("Description"))
+
+    feed_report = models.ForeignKey(
+        'oscar_mws.FeedReport',
+        verbose_name=_("Feed report"),
+        related_name="errors"
+    )
+
+    class Meta:
+        abstract = True
+
+
+class AbstractAmazonProfile(models.Model):
+    asin = models.CharField(_("ASIN"), max_length=10, unique=True)
+    product = models.ForeignKey(
+        'catalogue.Product',
+        verbose_name=_("Product"),
+        related_name="amazon_profile"
+    )
+
+    def __unicode__(self):
+        return "Amazon profile for {0}".format(self.product.name)
 
     class Meta:
         abstract = True
