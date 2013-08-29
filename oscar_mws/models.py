@@ -1,9 +1,13 @@
-from . import abstract_models
+from . import abstract_models as am
 
 
-class FeedSubmission(abstract_models.AbstractFeedSubmission):
+class FeedSubmission(am.AbstractFeedSubmission):
     pass
 
 
-class AmazonProfile(abstract_models.AbstractAmazonProfile):
+class AmazonProfile(am.AbstractAmazonProfile):
+    pass
+
+
+class ProductFeedSubmissionMessage(am.AbstractProductFeedSubmissionMessage):
     pass

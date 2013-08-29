@@ -5,11 +5,50 @@ from dateutil import parser as du_parser
 from django.db.models import get_model
 
 from .connection import get_connection
-from .abstract_models import STATUS_CANCELLED, STATUS_DONE
+from . import abstract_models as am
 
 logger = logging.getLogger('oscar_mws')
 
+Product = get_model('catalogue', 'Product')
 FeedSubmission = get_model("oscar_mws", "FeedSubmission")
+
+
+def submit_product_feed(products):
+    """
+    Generate a product feed for the list of *products* and submit it to
+    Amazon. The submission ID returned by them is used to create a
+    FeedSubmission to log the progress of the submission as well as the
+    products that are handled as part of the submission.
+    """
+    #TODO generate the product feed
+    feed_xml = u'<fake></fake>'
+
+    mws_connection = get_connection()
+    response = mws_connection.submit_feed(
+        FeedContent=feed_xml,
+        FeedType=am.TYPE_POST_PRODUCT_DATA,
+        content_type='text/xml'
+    )
+
+    fsinfo = response.SubmitFeedResult.FeedSubmissionInfo
+
+    try:
+        submission = FeedSubmission.objects.get(
+            submission_id=fsinfo.FeedSubmissionId,
+            date_submitted=du_parser.parse(fsinfo.SubmittedDate),
+            feed_type=fsinfo.FeedType,
+        )
+    except FeedSubmission.DoesNotExist:
+        submission = FeedSubmission(
+            submission_id=fsinfo.FeedSubmissionId,
+            date_submitted=du_parser.parse(fsinfo.SubmittedDate),
+            feed_type=fsinfo.FeedType,
+        )
+
+    submission.processing_status = fsinfo.FeedProcessingStatus
+    submission.save()
+
+    return submission
 
 
 def update_feed_submissions(submission_id=None):
@@ -25,7 +64,7 @@ def update_feed_submissions(submission_id=None):
         submissions = FeedSubmission.objects.filter(id=submission_id)
     else:
         submissions = FeedSubmission.objects.exclude(
-            processing_status__in=[STATUS_DONE, STATUS_CANCELLED]
+            processing_status__in=[am.STATUS_DONE, am.STATUS_CANCELLED]
         )
     if not submissions and submission_id is not None:
         return []

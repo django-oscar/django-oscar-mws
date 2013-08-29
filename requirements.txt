@@ -20,6 +20,7 @@ pytest-cov==1.6
 pytest-django==2.3.0
 pytest-pep8==1.0.4
 pytest-sugar==0.2.1
+django-oscar-testsupport==0.4
 
 # Code style and coverage
 flake8>=0.8

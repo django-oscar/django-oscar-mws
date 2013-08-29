@@ -1,33 +1,48 @@
+import os
 import httpretty
 
 from django.test import TestCase
 from django.db.models import get_model
 
 from oscar_mws import feeds
+from oscar_mws import abstract_models as am
 
 FeedSubmission = get_model('oscar_mws', 'FeedSubmission')
 
 
-FEED_SUBMISSION_LIST_RESPONSE_XML = """<?xml version="1.0"?>
-<GetFeedSubmissionListResponse xmlns="http://mws.amazonservices.com/
-doc/2009-01-01/">
-<GetFeedSubmissionListResult>
-<NextToken>2YgYW55IGNhcm5hbCBwbGVhc3VyZS4=</NextToken>
-<HasNext>true</HasNext>
-<FeedSubmissionInfo>
-<FeedSubmissionId>2291326430</FeedSubmissionId>
-<FeedType>_POST_PRODUCT_DATA_</FeedType>
-<SubmittedDate>2009-02-20T02:10:35+00:00</SubmittedDate>
-<FeedProcessingStatus>_SUBMITTED_</FeedProcessingStatus>
-</FeedSubmissionInfo>
-</GetFeedSubmissionListResult>
-<ResponseMetadata>
-<RequestId>1105b931-6f1c-4480-8e97-f3b467840a9e</RequestId>
-</ResponseMetadata>
-</GetFeedSubmissionListResponse>"""
+class DataLoaderMixin(object):
+    data_directory = 'tests/data'
+
+    def get_data_directory(self):
+        return os.path.join(os.getcwd(), self.data_directory)
+
+    def load_data(self, filename):
+        path = os.path.join(self.get_data_directory(), filename)
+        data = None
+        with open(path) as fh:
+            data = fh.read()
+        return data
 
 
-class TestUpdatingSubmissionList(TestCase):
+class TestSubmittingProductFeed(DataLoaderMixin, TestCase):
+
+    @httpretty.activate
+    def test_generates_feed_submission(self):
+        httpretty.register_uri(
+            httpretty.POST,
+            'https://mws.amazonservices.com/',
+            responses=[httpretty.Response(
+                self.load_data('submit_feed_response.xml'),
+            )],
+        )
+
+        submission = feeds.submit_product_feed([])
+
+        self.assertEquals(submission.submission_id, '2291326430')
+        self.assertEquals(submission.processing_status, am.STATUS_SUBMITTED)
+
+
+class TestUpdatingSubmissionList(DataLoaderMixin, TestCase):
 
     def test_returns_empty_list_for_invalid_id(self):
         submissions = feeds.update_feed_submissions(submission_id=(10 ** 12))
@@ -38,7 +53,9 @@ class TestUpdatingSubmissionList(TestCase):
         httpretty.register_uri(
             httpretty.POST,
             'https://mws.amazonservices.com/',
-            responses=[httpretty.Response(FEED_SUBMISSION_LIST_RESPONSE_XML)],
+            responses=[httpretty.Response(
+                self.load_data('get_feed_submission_list_response.xml'),
+            )],
         )
 
         submissions = feeds.update_feed_submissions()

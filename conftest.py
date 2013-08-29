@@ -7,7 +7,7 @@ location = lambda x: os.path.join(
 )
 sandbox = lambda x: location("sandbox/%s" % x)
 
-from oscar import get_core_apps
+from oscar import OSCAR_MAIN_TEMPLATE_DIR, get_core_apps
 
 
 def pytest_configure():
@@ -55,6 +55,7 @@ def pytest_configure():
         ROOT_URLCONF='sandbox.sandbox.urls',
         TEMPLATE_DIRS=[
             sandbox('templates'),
+            OSCAR_MAIN_TEMPLATE_DIR,
         ],
         INSTALLED_APPS=[
             'django.contrib.auth',

@@ -112,6 +112,13 @@ class AbstractFeedSubmission(models.Model):
         choices=PROCESSING_STATUSES
     )
 
+    submitted_products = models.ManyToManyField(
+        'catalogue.Product',
+        verbose_name=_("Submitted products"),
+        related_name="feed_submissions",
+        through="ProductFeedSubmissionMessage"
+    )
+
     def save(self, **kwargs):
         self.date_updated = tz_now()
         if not self.date_created:
@@ -125,12 +132,33 @@ class AbstractFeedSubmission(models.Model):
         abstract = True
 
 
+class AbstractProductFeedSubmissionMessage(models.Model):
+    product = models.ForeignKey(
+        'catalogue.Product',
+        verbose_name=_("Product"),
+    )
+    submission = models.ForeignKey(
+        'FeedSubmission',
+        verbose_name=_("Feed submission"),
+    )
+    message_id = models.PositiveIntegerField()
+
+    class Meta:
+        abstract = True
+        unique_together = (('submission', 'message_id'),)
+
+
 class AbstractFeedReport(models.Model):
     submission = models.OneToOneField(
         'oscar_mws.FeedSubmission',
         verbose_name=_("Feed submission"),
         related_name='feed_report',
     )
+
+    def __unicode__(self):
+        return "Report for submission #{0}".format(
+            self.submission.submission_id
+        )
 
     class Meta:
         abstract = True
@@ -152,7 +180,9 @@ class AbstractFeedError(models.Model):
 
 
 class AbstractAmazonProfile(models.Model):
-    asin = models.CharField(_("ASIN"), max_length=10, unique=True)
+    # We don't necessarily get the ASIN back right away so we need
+    # to be able to create a profile without a ASIN
+    asin = models.CharField(_("ASIN"), max_length=10, blank=True)
     product = models.ForeignKey(
         'catalogue.Product',
         verbose_name=_("Product"),
