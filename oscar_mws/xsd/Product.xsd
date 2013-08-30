@@ -13,7 +13,6 @@
     -->
 	<xsd:include schemaLocation="amzn-base.xsd"/>
 	<xsd:include schemaLocation="ClothingAccessories.xsd"/>
-	<xsd:include schemaLocation="Amazon.xsd"/>
 	<xsd:include schemaLocation="ProductClothing.xsd"/>
 	<xsd:include schemaLocation="Miscellaneous.xsd"/>
 	<xsd:include schemaLocation="CameraPhoto.xsd"/>

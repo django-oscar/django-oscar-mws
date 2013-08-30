@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<AmazonEnvelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="amzn-envelope.xsd">
+    <Header>
+        <DocumentVersion>1.01</DocumentVersion>
+        <MerchantIdentifier>M_SELLER_354577</MerchantIdentifier>
+    </Header>
+    <MessageType>Product</MessageType>
+    <PurgeAndReplace>true</PurgeAndReplace>
+    <Message>
+        <MessageID>1</MessageID>
+        <OperationType>Update</OperationType>
+        <Product>
+            <SKU>1Z-500ABR-FLAT</SKU>
+            <LaunchDate>2016-07-26T00:00:01</LaunchDate>
+            <DescriptionData>
+                <Title>Lyric 500 tc Queen Flat Sheet, Ivory</Title>
+                <Brand>Peacock Alley</Brand>
+                <Description>
+                    Lyric sheeting by Peacock Alley is the epitome of simple and classic elegance. The flat sheets
+                    and pillowcases feature a double row of hemstitching. The fitted sheets fit mattresses up to 21 inches deep.
+                    The sheets are shown at left with tone on tone monogramming, please call for monogramming details and prices.
+                    Please note, gift wrapping and overnight shipping are not available for this style.
+                </Description>
+                <BulletPoint>made in Italy</BulletPoint>
+                <BulletPoint>500 thread count</BulletPoint>
+                <BulletPoint>plain weave (percale)</BulletPoint>
+                <BulletPoint>100% Egyptian cotton</BulletPoint>
+                <Manufacturer>Peacock Alley</Manufacturer>
+                <SearchTerms>bedding</SearchTerms>
+                <SearchTerms>Sheets</SearchTerms>
+                <ItemType>flat-sheets</ItemType>
+                <IsGiftWrapAvailable>false</IsGiftWrapAvailable>
+                <IsGiftMessageAvailable>false</IsGiftMessageAvailable>
+                <RecommendedBrowseNode>60583031</RecommendedBrowseNode>
+                <RecommendedBrowseNode>60576021</RecommendedBrowseNode>
+            </DescriptionData>
+            <ProductData>
+                <Home>
+                    <Parentage>variation-parent</Parentage>
+                    <VariationData>
+                        <VariationTheme>Size-Color</VariationTheme>
+                    </VariationData>
+                    <Material>cotton</Material>
+                    <ThreadCount>500</ThreadCount>
+                </Home>
+            </ProductData>
+        </Product>
+    </Message>
+    <Message>
+</AmazonEnvelope>

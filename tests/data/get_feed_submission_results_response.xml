@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AmazonEnvelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="amzn-envelope.xsd">
+	<Header>
+		<DocumentVersion>1.02</DocumentVersion>
+		<MerchantIdentifier>MERCHANT_FAKE_12345</MerchantIdentifier>
+	</Header>
+	<MessageType>ProcessingReport</MessageType>
+	<Message>
+		<MessageID>1</MessageID>
+		<ProcessingReport>
+			<DocumentTransactionID>7867070986</DocumentTransactionID>
+			<StatusCode>Complete</StatusCode>
+			<ProcessingSummary MarketplaceName="samplewebstore.example.com">
+				<MessagesProcessed>1</MessagesProcessed>
+				<MessagesSuccessful>1</MessagesSuccessful>
+				<MessagesWithError>0</MessagesWithError>
+				<MessagesWithWarning>1</MessagesWithWarning>
+			</ProcessingSummary>
+			<Result>
+				<MessageID>1</MessageID>
+				<ResultCode>Warning</ResultCode>
+				<ResultMessageCode>99041</ResultMessageCode>
+				<ResultDescription>A value was not provided for "brand_name". Please provide a value for "brand_name". This information appears on the product detail page and helps customers evaluate products.</ResultDescription>
+				<AdditionalInfo>
+					<SKU>sku_1_2181</SKU>
+				</AdditionalInfo>
+			</Result>
+			<Result>
+				<MessageID>1</MessageID>
+				<ResultCode>Warning</ResultCode>
+				<ResultMessageCode>99041</ResultMessageCode>
+				<ResultDescription>A value was not provided for "bullet_point". Please provide a value for "bullet_point". This information appears on the product detail page and helps customers evaluate products.</ResultDescription>
+				<AdditionalInfo>
+					<SKU>sku_1_2181</SKU>
+				</AdditionalInfo>
+			</Result>
+			<Result>
+				<MessageID>1</MessageID>
+				<ResultCode>Warning</ResultCode>
+				<ResultMessageCode>99041</ResultMessageCode>
+				<ResultDescription>A value was not provided for "product_description". Please provide a value for "product_description". This information appears on the product detail page and helps customers evaluate products.</ResultDescription>
+				<AdditionalInfo>
+					<SKU>sku_1_2181</SKU>
+				</AdditionalInfo>
+			</Result>
+		</ProcessingReport>
+	</Message>
+</AmazonEnvelope>

@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.timezone import now as tz_now
 from django.utils.translation import ugettext_lazy as _
 
+
 STATUS_DONE = "_DONE_"
 STATUS_SUBMITTED = "_SUBMITTED_"
 STATUS_CANCELLED = "_CANCELLED_"
@@ -154,6 +155,11 @@ class AbstractFeedReport(models.Model):
         verbose_name=_("Feed submission"),
         related_name='feed_report',
     )
+    status_code = models.CharField(_("Status code"), max_length=100)
+    processed = models.PositiveIntegerField(_("Processed messages"))
+    successful = models.PositiveIntegerField(_("Successful messages"))
+    errors = models.PositiveIntegerField(_("Errors"))
+    warnings = models.PositiveIntegerField(_("Warnings"))
 
     def __unicode__(self):
         return "Report for submission #{0}".format(
@@ -164,15 +170,21 @@ class AbstractFeedReport(models.Model):
         abstract = True
 
 
-class AbstractFeedError(models.Model):
-    message_id = models.PositiveIntegerField(_("Message ID"))
+class AbstractFeedResult(models.Model):
     message_code = models.CharField(_("Message code"), max_length=100)
     description = models.TextField(_("Description"))
+    type = models.CharField(_("Result type"), max_length=100)
 
     feed_report = models.ForeignKey(
         'oscar_mws.FeedReport',
         verbose_name=_("Feed report"),
-        related_name="errors"
+        related_name="results"
+    )
+    product = models.ForeignKey(
+        'catalogue.Product',
+        verbose_name=_("Product"),
+        related_name="+",
+        null=True, blank=True
     )
 
     class Meta:
@@ -183,14 +195,83 @@ class AbstractAmazonProfile(models.Model):
     # We don't necessarily get the ASIN back right away so we need
     # to be able to create a profile without a ASIN
     asin = models.CharField(_("ASIN"), max_length=10, blank=True)
-    product = models.ForeignKey(
+    product = models.OneToOneField(
         'catalogue.Product',
         verbose_name=_("Product"),
         related_name="amazon_profile"
     )
+    product_tax_code = models.CharField(
+        _("Product tax code"),
+        max_length=200,
+        help_text=_("Only required in Canada, Europe and Japan"),
+        blank=True,
+    )
+    launch_date = models.DateTimeField(
+        _("Launch date"),
+        help_text=_("Controls when the products becomes searchable/browsable"),
+        null=True,
+        blank=True,
+    )
+    release_date = models.DateTimeField(
+        _("Release date"),
+        help_text=_("Controls when the product becomes buyable"),
+        null=True,
+        blank=True,
+    )
+    item_package_quantity = models.PositiveIntegerField(
+        _("Item package quantity"),
+        null=True,
+        blank=True,
+    )
+    number_of_items = models.PositiveIntegerField(
+        _("Number of items"),
+        null=True,
+        blank=True,
+    )
+
+    @property
+    def standard_product_id(self):
+        if not hasattr(self, '_cached_standard_product_id'):
+            self._cached_standard_product_id = self.product.upc
+        return self._cached_standard_product_id
+
+    @property
+    def sku(self):
+        if not hasattr(self, '_cached_sku'):
+            if not self.product.has_stockrecord:
+                self._cached_sku = None
+            self._cached_sku = self.product.stockrecord.partner_sku
+        return self._cached_sku
 
     def __unicode__(self):
-        return "Amazon profile for {0}".format(self.product.name)
+        return "Amazon profile for {0}".format(self.product.title)
+
+    class Meta:
+        abstract = True
+
+
+class AbstractMarketPlace(models.Model):
+    marketplace_id = models.CharField(_("Marketplace ID"), max_length=20)
+    name = models.CharField(_("Name"), max_length=200)
+
+    default_country_code = models.CharField(
+        _("Default country code"),
+        max_length=2
+    )
+    default_currency_code = models.CharField(
+        _("Default currency code"),
+        max_length=3
+    )
+    default_language_code = models.CharField(
+        _("Default language code"),
+    )
+    domain_name = models.CharField(_("Domain name"), max_length=255)
+
+    def __unicode__(self):
+        return "Market place {0} ({1})".format(
+            self.name,
+            self.marketplace_id
+        )
 
     class Meta:
         abstract = True

@@ -1,8 +1,14 @@
 import re
+import logging
 import itertools
+
+from datetime import datetime, date
 
 from lxml import etree
 from lxml.builder import E, ElementMaker
+
+logger = logging.getLogger('oscar_mws')
+
 
 OP_UPDATE = 'Update'
 OP_DELETE = 'Delete'
@@ -90,11 +96,13 @@ class BaseProductMapper(object):
         if hasattr(obj, method_name):
             return getattr(obj, method_name)()
         value = getattr(obj, attr, None)
-        if not value:
-            raise AttributeError(
-                "can't find attribute or function for {0}. Make sure you "
-                "have either of them defined and try again".format(attr)
-            )
+        #TODO this should be limited to only fields that are required in
+        # the feed.
+        #if not value:
+        #    raise AttributeError(
+        #        "can't find attribute or function for {0}. Make sure you "
+        #        "have either of them defined and try again".format(attr)
+        #    )
         return value
 
     def _add_attributes(self, product, elem, attr_names):
@@ -112,7 +120,23 @@ class BaseProductMapper(object):
             if not attr_value:
                 attr_value = self._get_value_from(self, pyattr)
 
-            etree.SubElement(elem, attr, attr_value)
+            # if we still have no value we assume it is optional and
+            # we just leave it out of the generated XML.
+            if attr_value:
+                if not isinstance(attr_value, basestring):
+                    attr_value = self.serialise(attr_value)
+                etree.SubElement(elem, attr).text = attr_value
+
+    def serialise(self, value):
+        """
+        Very basic an naive serialiser function for python types to the
+        Amazon XML representation.
+        """
+        if not value:
+            return u''
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        return unicode(value)
 
     def get_product_xml(self, product):
         product_elem = E.Product()
@@ -136,6 +160,7 @@ class ProductFeedWriter(object):
     def __init__(self, merchant_id, purge_and_replace=False, mapper=None):
         if mapper:
             self.mapper_class = mapper
+
         if not purge_and_replace:
             purge_value = 'false'
         else:
@@ -154,29 +179,34 @@ class ProductFeedWriter(object):
         self.root.attrib[attr_name] = "amzn-envelope.xsd"
 
         self.msg_counter = itertools.count(1)
-        self.message = {}
+        self.messages = {}
 
     def add_product(self, product, operation_type=OP_UPDATE):
         msg_id = self.msg_counter.next()
+
         msg_elem = E.Message(
-            E.MessageID(msg_id),
+            E.MessageID(unicode(msg_id)),
             E.OperationType(operation_type),
-            self.mapper_class.get_product_xml(product)
+            self.mapper_class().get_product_xml(product)
         )
         self.messages[msg_id] = product
+        self.root.append(msg_elem)
+
+    def validate_xml(self):
+        if not self.schema:
+            with open('oscar_mws/xsd/amzn-base.xsd') as xsdfh:
+                schema_doc = etree.parse(xsdfh)
+                self.schema = etree.XMLSchema(schema_doc)
+        is_valid = self.schema.validate(self.root)
+        if not is_valid:
+            logger.debug(
+                "product feed XML not valid: {0}".format(self.schema.error.log)
+            )
 
     def as_string(self, pretty_print=False):
         return etree.tostring(
             self.root,
             pretty_print=pretty_print,
             xml_declaration=True,
-            encoding='iso-8859-1'
+            encoding='utf-8'
         )
-
-
-#<Header>
-#<DocumentVersion>1.01</DocumentVersion>
-#<MerchantIdentifier>M_EXAMPLE_123456</MerchantIdentifier>
-#</Header>
-#<MessageType>Product</MessageType>
-#<PurgeAndReplace>false</PurgeAndReplace>

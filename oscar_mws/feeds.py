@@ -1,33 +1,49 @@
 import logging
 
+from lxml import etree
+from cStringIO import StringIO
 from dateutil import parser as du_parser
 
+from django.conf import settings
 from django.db.models import get_model
 
-from .connection import get_connection
 from . import abstract_models as am
+from .writers import ProductFeedWriter
+from .connection import get_connection
 
 logger = logging.getLogger('oscar_mws')
 
 Product = get_model('catalogue', 'Product')
+FeedReport = get_model("oscar_mws", "FeedReport")
+FeedResult = get_model("oscar_mws", "FeedResult")
 FeedSubmission = get_model("oscar_mws", "FeedSubmission")
 
 
-def submit_product_feed(products):
+def submit_product_feed(products, merchant_id=None, marketplace_ids=None):
     """
     Generate a product feed for the list of *products* and submit it to
     Amazon. The submission ID returned by them is used to create a
     FeedSubmission to log the progress of the submission as well as the
     products that are handled as part of the submission.
     """
-    #TODO generate the product feed
-    feed_xml = u'<fake></fake>'
+    if not merchant_id:
+        merchant_id = getattr(settings, "MWS_MERCHANT_ID")
+
+    writer = ProductFeedWriter(merchant_id)
+
+    for product in products:
+        writer.add_product(product)
+
+    optional = {}
+    if marketplace_ids:
+        optional['MarketplaceIdList'] = marketplace_ids
 
     mws_connection = get_connection()
     response = mws_connection.submit_feed(
-        FeedContent=feed_xml,
+        FeedContent=writer.as_string(),
         FeedType=am.TYPE_POST_PRODUCT_DATA,
-        content_type='text/xml'
+        content_type='text/xml',
+        **optional
     )
 
     fsinfo = response.SubmitFeedResult.FeedSubmissionInfo
@@ -76,8 +92,7 @@ def update_feed_submissions(submission_id=None):
 
     if response.GetFeedSubmissionListResult.HasNext:
         #TODO: need to handle this flag
-        token = response.GetFeedSubmissionListResult.NextToken
-        print token
+        response.GetFeedSubmissionListResult.NextToken
 
     updated_feeds = []
     for result in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
@@ -103,7 +118,7 @@ def update_feed_submissions(submission_id=None):
     return updated_feeds
 
 
-def process_submission_results(submission_id):
+def process_submission_results(submission):
     """
     Retrieve the submission results via the MWS API to check for errors in
     the submitted feed. The report and error data is stored in a submission
@@ -112,3 +127,53 @@ def process_submission_results(submission_id):
     If the submission was successful, we use the Inventory API to retrieve
     generated ASINs for new products and update the stock of the products.
     """
+    mws = get_connection()
+    response = mws.get_feed_submission_result(FeedSubmissionId=submission.id)
+
+    doc = etree.parse(StringIO(response))
+    reports = []
+    for report in doc.xpath('.//Message/ProcessingReport'):
+        submission_id = int(report.find('DocumentTransactionID').text)
+
+        if submission_id != submission.submission_id:
+            logger.warning(
+                'received submission result for {0} when requesting '
+                '{1}'.format(submission_id, submission.submission_id)
+            )
+            continue
+
+        try:
+            feed_report = FeedReport.objects.get(submission=submission)
+        except FeedReport.DoesNotExist:
+            feed_report = FeedReport(submission=submission)
+
+        feed_report.status_code = report.find('StatusCode').text
+
+        summary = report.find('ProcessingSummary')
+        feed_report.processed = int(summary.find('MessagesProcessed').text)
+        feed_report.successful = int(summary.find('MessagesSuccessful').text)
+        feed_report.errors = int(summary.find('MessagesWithError').text)
+        feed_report.warnings = int(summary.find('MessagesWithWarning').text)
+        feed_report.save()
+
+        reports.append(feed_report)
+
+        for result in report.findall('Result'):
+            feed_result = FeedResult(feed_report=feed_report)
+            feed_result.message_code = result.find('ResultMessageCode').text
+            feed_result.description = result.find('ResultDescription').text
+            feed_result.type = result.find('ResultCode').text
+
+            product_sku = result.find('AdditionalInfo/SKU').text
+            try:
+                product = Product.objects.get(
+                    product__stockrecord__partner_sku=product_sku
+                )
+            except Product.DoesNotExist:
+                pass
+            else:
+                feed_result.product = product
+
+            feed_result.save()
+
+    return reports
