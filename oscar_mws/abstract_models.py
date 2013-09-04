@@ -275,3 +275,131 @@ class AbstractMarketPlace(models.Model):
 
     class Meta:
         abstract = True
+
+
+class AbstractFulfillmentOrder(models.Model):
+    RECEIVED = 'RECEIVED'
+    INVALID = 'INVALID'
+    PLANNING = 'PLANNING'
+    PROCESSING = 'PROCESSING'
+    CANCELLED = 'CANCELLED'
+    COMPLETE = "COMPLETE"
+    COMPLETE_PARTIALLED = "COMPLETEPARTIALLED"
+    UNFULFILLABLE = 'UNFULFILLABLE'
+
+    STATUSES = (
+        (RECEIVED, _("Received")),
+        (INVALID, _("Invalid")),
+        (PLANNING, _("Planning")),
+        (PROCESSING, _("Processing")),
+        (CANCELLED, _("Cancelled")),
+        (COMPLETE, _("Complete")),
+        (COMPLETE_PARTIALLED, _("Complete Partialled")),
+        (UNFULFILLABLE, _("Unfullfillable")),
+    )
+
+    fulfillment_id = models.CharField(
+        _("Fulfillment ID"),
+        max_length=32,
+        unique=True,
+    )
+    order = models.ForeignKey(
+        'order.Order',
+        verbose_name=_("Order"),
+        related_name="outbound_shipments"
+    )
+
+    lines = models.ManyToManyField(
+        'order.Line',
+        through='FulfillmentOrderLine',
+        verbose_name=_("Lines"),
+        related_name="fulfillment_orders"
+    )
+    status = models.CharField(
+        _("Fulfillment status"),
+        max_length=25,
+        choices=STATUSES,
+        blank=True
+    )
+    date_updated = models.DateTimeField(_("Date last updated"))
+
+    def __unicode__(self):
+        return "Outbound shipment for #{0}".format(self.fulfillment_id)
+
+    class Meta:
+        abstract = True
+
+
+class AbstractFulfillmentOrderLine(models.Model):
+    line = models.ForeignKey(
+        'order.Line',
+        verbose_name=_("Line"),
+        related_name="fulfillment_lines",
+    )
+    fulfillment_order = models.ForeignKey(
+        'oscar_mws.FulfillmentOrder',
+        verbose_name=_("Fulfillment order"),
+    )
+    order_item_id = models.CharField(
+        _("Seller fulfillment order item ID"),
+        max_length=50,
+    )
+
+    def __unicode__(self):
+        return "Line {0} on {1}".format(
+            self.line.partner_sku,
+            self.fulfillment_order.fulfillment_id
+        )
+
+    class Meta:
+        abstract = True
+
+
+class AbstractFulfillmentShipment(models.Model):
+    shipment_id = models.CharField(_("Amazon shipment ID"), max_length=64)
+    fulfillment_center_id = models.CharField(
+        _("Fulfillment center ID"),
+        max_length=64
+    )
+    order = models.ForeignKey(
+        "order.Order",
+        verbose_name=_("Order"),
+        related_name="fulfillment_shipments",
+    )
+    shipment_events = models.ManyToManyField(
+        'order.ShippingEvent',
+        verbose_name=_("Shipping events"),
+        related_name="fulfillment_shipments",
+    )
+    status = models.CharField(_("Shipment status"), max_length=24)
+    date_estimated_arrival = models.DateTimeField(
+        _("Estimated arrival"),
+        null=True, blank=True,
+    )
+    date_shipped = models.DateTimeField(_("Shipped"), null=True, blank=True)
+
+    def __unicode__(self):
+        return "Shipment {0} for order {1}",
+
+    class Meta:
+        abstract = True
+
+
+class AbstractShipmentPackage(models.Model):
+    tracking_number = models.CharField(_("Tracking number"), max_length=255)
+    carrier_code = models.CharField(_("Carrier code"), max_length=255)
+
+    fulfillment_shipment = models.ForeignKey(
+        'oscar_mws.FulfillmentShipment',
+        verbose_name=_("Fulfillment shipment"),
+        related_name="packages"
+    )
+
+    def __unicode__(self):
+        return "Package {0} delivered by {1}".format(
+            self.tracking_number,
+            self.carrier_code
+        )
+
+    class Meta:
+        abstract = True

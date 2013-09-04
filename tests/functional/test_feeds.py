@@ -1,6 +1,3 @@
-import os
-import base64
-import hashlib
 import httpretty
 
 from django.test import TestCase
@@ -10,29 +7,13 @@ from django.test.utils import override_settings
 from oscar_mws import feeds
 from oscar_mws import abstract_models as am
 
+from oscar_mws.test import mixins
 from oscar_mws.test import factories
 
 FeedSubmission = get_model('oscar_mws', 'FeedSubmission')
 
 
-class DataLoaderMixin(object):
-    data_directory = 'tests/data'
-
-    def get_md5(self, content):
-        return base64.encodestring(hashlib.md5(content).digest()).strip()
-
-    def get_data_directory(self):
-        return os.path.join(os.getcwd(), self.data_directory)
-
-    def load_data(self, filename):
-        path = os.path.join(self.get_data_directory(), filename)
-        data = None
-        with open(path) as fh:
-            data = fh.read()
-        return data
-
-
-class TestSubmittingProductFeed(DataLoaderMixin, TestCase):
+class TestSubmittingProductFeed(mixins.DataLoaderMixin, TestCase):
 
     @httpretty.activate
     @override_settings(MWS_MERCHANT_ID='MERCHANT_FAKE_12345')
@@ -51,7 +32,7 @@ class TestSubmittingProductFeed(DataLoaderMixin, TestCase):
         self.assertEquals(submission.processing_status, am.STATUS_SUBMITTED)
 
 
-class TestUpdatingSubmissionList(DataLoaderMixin, TestCase):
+class TestUpdatingSubmissionList(mixins.DataLoaderMixin, TestCase):
 
     def test_returns_empty_list_for_invalid_id(self):
         submissions = feeds.update_feed_submissions(submission_id=(10 ** 12))
@@ -75,7 +56,7 @@ class TestUpdatingSubmissionList(DataLoaderMixin, TestCase):
         self.assertEquals(submission.processing_status, '_SUBMITTED_')
 
 
-class TestProcessingSubmissionFeedResults(DataLoaderMixin, TestCase):
+class TestProcessingSubmissionFeedResults(mixins.DataLoaderMixin, TestCase):
 
     @httpretty.activate
     def test_generates_submission_report_correctly(self):
@@ -100,6 +81,3 @@ class TestProcessingSubmissionFeedResults(DataLoaderMixin, TestCase):
         self.assertEquals(report.errors, 0)
         self.assertEquals(report.warnings, 1)
         self.assertEquals(report.results.count(), 3)
-
-
-

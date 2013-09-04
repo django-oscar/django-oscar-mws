@@ -151,33 +151,43 @@ class BaseProductMapper(object):
         return product_elem
 
 
-class ProductFeedWriter(object):
+class BaseFeedWriter(object):
+    DOCUMENT_VERSION = '1.01'
     XSI = "http://www.w3.org/2001/XMLSchema-instance"
     NSMAP = {'xsi': XSI}
 
-    mapper_class = BaseProductMapper
-
-    def __init__(self, merchant_id, purge_and_replace=False, mapper=None):
-        if mapper:
-            self.mapper_class = mapper
+    def __init__(self, message_type, merchant_id, document_version=None,
+                 purge_and_replace=False):
+        ENS = ElementMaker(nsmap=self.NSMAP)
 
         if not purge_and_replace:
             purge_value = 'false'
         else:
             purge_value = 'true'
 
-        ENS = ElementMaker(nsmap=self.NSMAP)
         self.root = ENS.AmazonEnvelope(
             E.Header(
-                E.DocumentVersion("1.01"),
+                E.DocumentVersion(document_version or self.DOCUMENT_VERSION),
                 E.MerchantIdentifier(merchant_id),
             ),
-            E.MessageType('Product'),
+            E.MessageType(message_type),
             E.PurgeAndReplace(purge_value),
         )
         attr_name = "{{{0}}}noNamespaceSchemaLocation".format(self.XSI)
         self.root.attrib[attr_name] = "amzn-envelope.xsd"
 
+
+class ProductFeedWriter(BaseFeedWriter):
+    mapper_class = BaseProductMapper
+
+    def __init__(self, merchant_id, purge_and_replace=False, mapper=None):
+        super(ProductFeedWriter, self).__init__(
+            message_type='Product',
+            merchant_id=merchant_id,
+            purge_and_replace=purge_and_replace,
+        )
+
+        self.mapper_class = mapper or self.mapper_class
         self.msg_counter = itertools.count(1)
         self.messages = {}
 
@@ -210,3 +220,7 @@ class ProductFeedWriter(object):
             xml_declaration=True,
             encoding='utf-8'
         )
+
+
+class InventoryFeedWriter(BaseFeedWriter):
+    pass
