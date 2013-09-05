@@ -251,8 +251,8 @@ class OutboundShipmentCreator(object):
             order_kwargs = adapter.get_fields(address=address)
             order_kwargs
 
-            outbount_shipment, __ = OutboundShipment.objects.get_or_create(
-                fulfillment_id=adapter.get_seller_fulfillment_order_id(
+            outbount_shipment, __ = FulfillmentShipment.objects.get_or_create(
+                shipment_id=adapter.get_seller_fulfillment_order_id(
                     address
                 ),
                 order=order,

@@ -1,6 +1,9 @@
 from django.db import models
+from django.conf import settings
 from django.utils.timezone import now as tz_now
 from django.utils.translation import ugettext_lazy as _
+
+from lxml.builder import E
 
 
 STATUS_DONE = "_DONE_"
@@ -192,6 +195,16 @@ class AbstractFeedResult(models.Model):
 
 
 class AbstractAmazonProfile(models.Model):
+    SELLER_SKU_FIELD = "product__{0}".format(
+        getattr(settings, "MWS_SELLER_SKU_FIELD")
+    )
+    FULFILLMENT_BY_AMAZON = "AFN"
+    FULFILLMENT_BY_MERCHANT = "MFN"
+    FULFILLMENT_TYPES = (
+        (FULFILLMENT_BY_AMAZON, _("Fulfillment by Amazon")),
+        (FULFILLMENT_BY_MERCHANT, _("Fulfillment by Merchant")),
+    )
+
     # We don't necessarily get the ASIN back right away so we need
     # to be able to create a profile without a ASIN
     asin = models.CharField(_("ASIN"), max_length=10, blank=True)
@@ -228,12 +241,18 @@ class AbstractAmazonProfile(models.Model):
         null=True,
         blank=True,
     )
+    fulfillment_by = models.CharField(
+        _("Fulfillment by"),
+        max_length=3,
+        choices=FULFILLMENT_TYPES,
+        default=FULFILLMENT_BY_MERCHANT,
+    )
 
-    @property
-    def standard_product_id(self):
-        if not hasattr(self, '_cached_standard_product_id'):
-            self._cached_standard_product_id = self.product.upc
-        return self._cached_standard_product_id
+    def get_standard_product_id(self):
+        return E.StandardProductID(
+            E.Type("UPC"),
+            E.Value(self.product.upc[:16]),
+        )
 
     @property
     def sku(self):

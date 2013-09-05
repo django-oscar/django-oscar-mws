@@ -145,6 +145,9 @@ DJANGO_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.flatpages',
     'django.contrib.admin',
+
+    'compressor',
+    'south',
 ]
 
 THIRD_PARTY_APPS = [
@@ -211,3 +214,8 @@ LOGGING = {
 }
 
 INTERNAL_IPS = ('127.0.0.1',)
+
+MWS_SELLER_ID = os.environ.get("MWS_SELLER_ID")
+MWS_MARKETPLACE_ID = os.environ.get("MWS_MARKETPLACE_ID")
+# Django ORM field description for seller SKU relative to Product model
+MWS_SELLER_SKU_FIELD = 'stockrecord__partner_sku'

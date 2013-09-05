@@ -2,13 +2,13 @@ import logging
 
 from lxml import etree
 from cStringIO import StringIO
-from dateutil import parser as du_parser
+from dateutil.parser import parse as du_parse
 
 from django.conf import settings
 from django.db.models import get_model
 
+from . import writers
 from . import abstract_models as am
-from .writers import ProductFeedWriter
 from .connection import get_connection
 
 logger = logging.getLogger('oscar_mws')
@@ -16,10 +16,34 @@ logger = logging.getLogger('oscar_mws')
 Product = get_model('catalogue', 'Product')
 FeedReport = get_model("oscar_mws", "FeedReport")
 FeedResult = get_model("oscar_mws", "FeedResult")
+AmazonProfile = get_model('oscar_mws', 'AmazonProfile')
 FeedSubmission = get_model("oscar_mws", "FeedSubmission")
 
 
-def submit_product_feed(products, merchant_id=None, marketplace_ids=None):
+def handle_feed_submission_response(response):
+    fsinfo = response.SubmitFeedResult.FeedSubmissionInfo
+
+    try:
+        submission = FeedSubmission.objects.get(
+            submission_id=fsinfo.FeedSubmissionId,
+            date_submitted=du_parse(fsinfo.SubmittedDate),
+            feed_type=fsinfo.FeedType,
+        )
+    except FeedSubmission.DoesNotExist:
+        submission = FeedSubmission(
+            submission_id=fsinfo.FeedSubmissionId,
+            date_submitted=du_parse(fsinfo.SubmittedDate),
+            feed_type=fsinfo.FeedType,
+        )
+
+    submission.processing_status = fsinfo.FeedProcessingStatus
+    submission.save()
+
+    return submission
+
+
+def submit_product_feed(products, merchant_id=None, marketplace_ids=None,
+                        dry_run=False):
     """
     Generate a product feed for the list of *products* and submit it to
     Amazon. The submission ID returned by them is used to create a
@@ -27,43 +51,52 @@ def submit_product_feed(products, merchant_id=None, marketplace_ids=None):
     products that are handled as part of the submission.
     """
     if not merchant_id:
-        merchant_id = getattr(settings, "MWS_MERCHANT_ID")
-
-    writer = ProductFeedWriter(merchant_id)
-
-    for product in products:
-        writer.add_product(product)
+        merchant_id = getattr(settings, "MWS_SELLER_ID")
 
     optional = {}
     if marketplace_ids:
         optional['MarketplaceIdList'] = marketplace_ids
 
+    writer = writers.ProductFeedWriter(merchant_id)
+    for product in products:
+        writer.add_product(product)
+    xml_data = writer.as_string(pretty_print=dry_run)
+
+    if dry_run:
+        print xml_data
+        return
+
     mws_connection = get_connection()
     response = mws_connection.submit_feed(
-        FeedContent=writer.as_string(),
+        FeedContent=xml_data,
         FeedType=am.TYPE_POST_PRODUCT_DATA,
         content_type='text/xml',
         **optional
     )
+    return handle_feed_submission_response(response)
 
-    fsinfo = response.SubmitFeedResult.FeedSubmissionInfo
 
-    try:
-        submission = FeedSubmission.objects.get(
-            submission_id=fsinfo.FeedSubmissionId,
-            date_submitted=du_parser.parse(fsinfo.SubmittedDate),
-            feed_type=fsinfo.FeedType,
-        )
-    except FeedSubmission.DoesNotExist:
-        submission = FeedSubmission(
-            submission_id=fsinfo.FeedSubmissionId,
-            date_submitted=du_parser.parse(fsinfo.SubmittedDate),
-            feed_type=fsinfo.FeedType,
-        )
+def update_feed_submission(submission_id=None):
+    response = get_connection().get_feed_submission_list(
+        FeedSubmissionIdList=[submission_id]
+    )
+    for result in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
+        print result
+        try:
+            submission = FeedSubmission.objects.get(
+                submission_id=result.FeedSubmissionId,
+                date_submitted=du_parse(result.SubmittedDate),
+                feed_type=result.FeedType,
+            )
+        except FeedSubmission.DoesNotExist:
+            submission = FeedSubmission(
+                submission_id=result.FeedSubmissionId,
+                date_submitted=du_parse(result.SubmittedDate),
+                feed_type=result.FeedType,
+            )
 
-    submission.processing_status = fsinfo.FeedProcessingStatus
-    submission.save()
-
+        submission.processing_status = result.FeedProcessingStatus
+        submission.save()
     return submission
 
 
@@ -77,7 +110,9 @@ def update_feed_submissions(submission_id=None):
     Returns List of updated ``FeedSubmission`` instances.
     """
     if submission_id:
-        submissions = FeedSubmission.objects.filter(id=submission_id)
+        submissions = FeedSubmission.objects.filter(
+            submission_id=submission_id
+        )
     else:
         submissions = FeedSubmission.objects.exclude(
             processing_status__in=[am.STATUS_DONE, am.STATUS_CANCELLED]
@@ -87,7 +122,7 @@ def update_feed_submissions(submission_id=None):
 
     mws = get_connection()
     response = mws.get_feed_submission_list(
-        FeedSubmissionIdList=[s.id for s in submissions]
+        FeedSubmissionIdList=[s.submission_id for s in submissions]
     )
 
     if response.GetFeedSubmissionListResult.HasNext:
@@ -99,13 +134,13 @@ def update_feed_submissions(submission_id=None):
         try:
             submission = FeedSubmission.objects.get(
                 submission_id=result.FeedSubmissionId,
-                date_submitted=du_parser.parse(result.SubmittedDate),
+                date_submitted=du_parse(result.SubmittedDate),
                 feed_type=result.FeedType,
             )
         except FeedSubmission.DoesNotExist:
             submission = FeedSubmission(
                 submission_id=result.FeedSubmissionId,
-                date_submitted=du_parser.parse(result.SubmittedDate),
+                date_submitted=du_parse(result.SubmittedDate),
                 feed_type=result.FeedType,
             )
 
@@ -118,6 +153,30 @@ def update_feed_submissions(submission_id=None):
     return updated_feeds
 
 
+def list_submitted_feeds():
+    mws_connection = get_connection()
+    response = mws_connection.get_feed_submission_list()
+
+    feed_info = []
+    for feed in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
+        feed_info.append({
+            'submission_id': feed.FeedSubmissionId,
+            'feed_type': feed.FeedType,
+            'status': feed.FeedProcessingStatus,
+            'date_submitted': du_parse(
+                feed.get('SubmittedDate') or ''
+            ),
+            'date_processing_started': du_parse(
+                feed.get('StartedProcessingDate') or ''
+            ),
+            'date_processing_ended': du_parse(
+                feed.get('CompletedProcessingDate') or ''
+            ),
+        })
+
+    return feed_info
+
+
 def process_submission_results(submission):
     """
     Retrieve the submission results via the MWS API to check for errors in
@@ -128,7 +187,9 @@ def process_submission_results(submission):
     generated ASINs for new products and update the stock of the products.
     """
     mws = get_connection()
-    response = mws.get_feed_submission_result(FeedSubmissionId=submission.id)
+    response = mws.get_feed_submission_result(
+        FeedSubmissionId=submission.submission_id
+    )
 
     doc = etree.parse(StringIO(response))
     reports = []
@@ -164,16 +225,74 @@ def process_submission_results(submission):
             feed_result.description = result.find('ResultDescription').text
             feed_result.type = result.find('ResultCode').text
 
-            product_sku = result.find('AdditionalInfo/SKU').text
-            try:
-                product = Product.objects.get(
-                    product__stockrecord__partner_sku=product_sku
-                )
-            except Product.DoesNotExist:
-                pass
-            else:
-                feed_result.product = product
-
+            if result.find('AdditionalInfo/SKU'):
+                product_sku = result.find('AdditionalInfo/SKU').text
+                try:
+                    product = Product.objects.get(
+                        product__stockrecord__partner_sku=product_sku
+                    )
+                except Product.DoesNotExist:
+                    pass
+                else:
+                    feed_result.product = product
             feed_result.save()
 
     return reports
+
+
+def update_product_identifiers(products, marketplace_id=None):
+    if not marketplace_id:
+        marketplace_id = settings.MWS_MARKETPLACE_ID
+
+    for product in products:
+        response = get_connection().get_matching_product_for_id(
+            MarketplaceId=marketplace_id,
+            IdType="SellerSKU",
+            IdList=[product.amazon_profile.sku],
+        )
+
+        result = response.GetMatchingProductForIdResult
+        if not result.get('status') == 'Success':
+            logger.info(
+                'Skipping product with SKU {0}, no info available'.format(
+                    response.attrib.get("Id")
+                )
+            )
+            continue
+
+        for fprod in response.GetMatchingProductForIdResult.Products.Product:
+            mp_asin = fprod.Identifiers.MarketplaceASIN
+            marketplace_id = mp_asin.MarketplaceId
+            asin = mp_asin.ASIN
+
+            if asin:
+                AmazonProfile.objects.filter(**{
+                    AmazonProfile.SELLER_SKU_FIELD: result.get("Id")
+                }).update(asin=asin)
+
+
+def switch_product_fulfillment(products, merchant_id, fulfillment_by=None,
+                               fulfillment_center_id=None, dry_run=False):
+    if not merchant_id:
+        merchant_id = getattr(settings, "MWS_SELLER_ID")
+
+    writer = writers.InventoryFeedWriter(merchant_id)
+    for product in products:
+        writer.add_product(
+            product,
+            fulfillment_by=fulfillment_by,
+            fulfillment_center_id=fulfillment_center_id,
+        )
+
+    xml_data = writer.as_string(pretty_print=dry_run)
+    if dry_run:
+        print xml_data
+        return
+
+    mws_connection = get_connection()
+    response = mws_connection.submit_feed(
+        FeedContent=xml_data,
+        FeedType=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
+        content_type='text/xml',
+    )
+    return handle_feed_submission_response(response)

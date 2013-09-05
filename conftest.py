@@ -66,6 +66,9 @@ def pytest_configure():
             'django.contrib.staticfiles',
             'django.contrib.admin',
 
+            'compressor',
+            'south',
+
             'oscar_mws',
         ] + get_core_apps(),
         AUTHENTICATION_BACKENDS=(
@@ -73,7 +76,6 @@ def pytest_configure():
         ),
         AWS_ACCESS_KEY_ID='fakeaccesskey',
         AWS_SECRET_ACCESS_KEY='fakesecret',
-        MWS_MERCHANT_ID='fakemerchantid',
         COMPRESS_ENABLED=True,
         COMPRESS_OFFLINE=False,
         COMPRESS_PRECOMPILERS=(
@@ -87,5 +89,9 @@ def pytest_configure():
                 'ENGINE': 'haystack.backends.simple_backend.SimpleEngine',
             },
         },
+        MWS_SELLER_ID='fakemerchantid',
+        MWS_MARKETPLACE_ID='fakemarketplace',
+        # Django ORM field description for seller SKU relative to Product model
+        MWS_SELLER_SKU_FIELD='stockrecord__partner_sku',
         **OSCAR_SETTINGS
     )

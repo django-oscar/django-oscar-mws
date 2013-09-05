@@ -8,7 +8,7 @@ from django.utils.timezone import now
 
 from oscar_testsupport.factories import create_product
 
-from oscar_mws.writers import ProductFeedWriter, BaseProductMapper
+from oscar_mws.writers import ProductFeedWriter, ProductMapper
 
 UTC_NOW = now()
 
@@ -51,7 +51,7 @@ class TestBaseProductMapper(TestCase):
         obj = Mock()
         obj.test_attribute = 'amazing value'
 
-        mapper = BaseProductMapper()
+        mapper = ProductMapper()
         self.assertEquals(
             mapper._get_value_from(obj, 'test_attribute'),
             obj.test_attribute
@@ -61,7 +61,7 @@ class TestBaseProductMapper(TestCase):
         obj = mock.Mock()
         obj.get_test_attribute = mock.Mock(return_value='amazing value')
 
-        mapper = BaseProductMapper()
+        mapper = ProductMapper()
         self.assertEquals(
             mapper._get_value_from(obj, 'test_attribute'),
             obj.get_test_attribute()
@@ -75,7 +75,7 @@ class TestBaseProductMapper(TestCase):
             release_date=UTC_NOW
         )
 
-        mapper = BaseProductMapper()
+        mapper = ProductMapper()
         xml = etree.tostring(mapper.get_product_xml(product))
         self.assertIn(
             '<SKU>{0}</SKU>'.format(product.stockrecord.partner_sku),

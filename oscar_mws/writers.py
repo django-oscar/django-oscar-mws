@@ -7,7 +7,11 @@ from datetime import datetime, date
 from lxml import etree
 from lxml.builder import E, ElementMaker
 
+from django.db.models import get_model
+
 logger = logging.getLogger('oscar_mws')
+
+AmazonProfile = get_model('oscar_mws', 'AmazonProfile')
 
 
 OP_UPDATE = 'Update'
@@ -31,6 +35,55 @@ MSG_TYPE_SETTLEMENT_REPORT = "SettlementReport"
 
 class BaseProductMapper(object):
 
+    def convert_camel_case(self, name):
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+    def _get_value_from(self, obj, attr):
+        """
+        Get value from the *obj* for the given attribute name in *attr*. First
+        this method attempts to retrieve the value from a ``get_<attr>``
+        method then falls back to a simple attribute.
+        """
+        method_name = 'get_{0}'.format(attr)
+        if hasattr(obj, method_name):
+            return getattr(obj, method_name)()
+        value = getattr(obj, attr, None)
+        #TODO this should be limited to only fields that are required in
+        # the feed.
+        #if not value:
+        #    raise AttributeError(
+        #        "can't find attribute or function for {0}. Make sure you "
+        #        "have either of them defined and try again".format(attr)
+        #    )
+        return value
+
+    def get_value_element(self, product, attr_name):
+        pyattr = self.convert_camel_case(attr_name)
+
+        attr_value = self._get_value_from(product.amazon_profile, pyattr)
+        if not attr_value:
+            attr_value = self._get_value_from(product, pyattr)
+        if not attr_value:
+            attr_value = self._get_value_from(self, pyattr)
+
+        # if we still have no value we assume it is optional and
+        # we just leave it out of the generated XML.
+        if not attr_value:
+            return None
+
+
+        if isinstance(attr_value, etree._Element):
+            return attr_value
+
+        if not isinstance(attr_value, basestring):
+            attr_value = self.serialise(attr_value)
+        elem = etree.Element(attr_name)
+        elem.text = attr_value
+        return elem
+
+
+class ProductMapper(BaseProductMapper):
     BASE_ATTRIBUTES = [
         "SKU",
         "StandardProductID",
@@ -46,7 +99,6 @@ class BaseProductMapper(object):
         "ItemPackageQuantity",
         "NumberOfItems",
     ]
-
     DESCRIPTION_DATA_ATTRIBUTES = [
         "Title",
         "Brand",
@@ -81,51 +133,21 @@ class BaseProductMapper(object):
         "MaxAggregateShipQuantity",
     ]
 
-    def convert_camel_case(self, name):
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-
-    def _get_value_from(self, obj, attr):
-        """
-        Get value from the *obj* for the given attribute name in *attr*. First
-        this method attempts to retrieve the value from a ``get_<attr>``
-        method then falls back to a simple attribute. If neither of them is
-        available, an ``AttributeError`` is raised.
-        """
-        method_name = 'get_{0}'.format(attr)
-        if hasattr(obj, method_name):
-            return getattr(obj, method_name)()
-        value = getattr(obj, attr, None)
-        #TODO this should be limited to only fields that are required in
-        # the feed.
-        #if not value:
-        #    raise AttributeError(
-        #        "can't find attribute or function for {0}. Make sure you "
-        #        "have either of them defined and try again".format(attr)
-        #    )
-        return value
-
     def _add_attributes(self, product, elem, attr_names):
+        try:
+            product.amazon_profile
+        except AmazonProfile.DoesNotExist:
+            # Assign to the product to make sure it is accessible without
+            # having to look it up on the product again
+            product.amazon_profile = AmazonProfile.objects.create(
+                product=product
+            )
+
         for attr in attr_names:
-            pyattr = self.convert_camel_case(attr)
+            attr_elem = self.get_value_element(product, attr)
 
-            attr_value = None
-            if hasattr(product, 'amazon_profile'):
-                attr_value = self._get_value_from(
-                    product.amazon_profile,
-                    pyattr
-                )
-            if not attr_value:
-                attr_value = self._get_value_from(product, pyattr)
-            if not attr_value:
-                attr_value = self._get_value_from(self, pyattr)
-
-            # if we still have no value we assume it is optional and
-            # we just leave it out of the generated XML.
-            if attr_value:
-                if not isinstance(attr_value, basestring):
-                    attr_value = self.serialise(attr_value)
-                etree.SubElement(elem, attr).text = attr_value
+            if attr_elem is not None:
+                elem.append(attr_elem)
 
     def serialise(self, value):
         """
@@ -176,9 +198,17 @@ class BaseFeedWriter(object):
         attr_name = "{{{0}}}noNamespaceSchemaLocation".format(self.XSI)
         self.root.attrib[attr_name] = "amzn-envelope.xsd"
 
+    def as_string(self, pretty_print=False):
+        return etree.tostring(
+            self.root,
+            pretty_print=pretty_print,
+            xml_declaration=True,
+            encoding='utf-8'
+        )
+
 
 class ProductFeedWriter(BaseFeedWriter):
-    mapper_class = BaseProductMapper
+    mapper_class = ProductMapper
 
     def __init__(self, merchant_id, purge_and_replace=False, mapper=None):
         super(ProductFeedWriter, self).__init__(
@@ -213,14 +243,36 @@ class ProductFeedWriter(BaseFeedWriter):
                 "product feed XML not valid: {0}".format(self.schema.error.log)
             )
 
-    def as_string(self, pretty_print=False):
-        return etree.tostring(
-            self.root,
-            pretty_print=pretty_print,
-            xml_declaration=True,
-            encoding='utf-8'
-        )
-
 
 class InventoryFeedWriter(BaseFeedWriter):
-    pass
+    mapper_class = BaseProductMapper
+
+    def __init__(self, merchant_id, purge_and_replace=False, mapper=None):
+        super(InventoryFeedWriter, self).__init__(
+            message_type='Inventory',
+            merchant_id=merchant_id,
+            purge_and_replace=purge_and_replace,
+        )
+        self.msg_counter = itertools.count(1)
+        self.messages = {}
+
+    def add_product(self, product, operation_type=OP_UPDATE,
+                    fulfillment_center_id=None, fulfillment_by=None):
+        msg_id = self.msg_counter.next()
+
+        inventory = E.Inventory(
+            self.mapper_class().get_value_element(product, 'SKU'),
+        )
+        if fulfillment_center_id:
+            inventory.append(E.FulfillmentCenterID(fulfillment_center_id))
+            inventory.append(E.Lookup('FulfillmentNetwork'))
+        if fulfillment_by:
+            inventory.append(E.SwitchFulfillmentTo(fulfillment_by))
+
+        msg_elem = E.Message(
+            E.MessageID(unicode(msg_id)),
+            E.OperationType(operation_type),
+            inventory
+        )
+        self.messages[msg_id] = product
+        self.root.append(msg_elem)

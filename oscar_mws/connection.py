@@ -26,11 +26,11 @@ def get_connection(aws_access_key_id=None, aws_secret_access_key=None,
         )
 
     try:
-        merchant_id = settings.MWS_MERCHANT_ID
+        merchant_id = settings.MWS_SELLER_ID
     except AttributeError:
         raise ImproperlyConfigured(
             "a merchant/seller ID is required to use Amazon MWS. "
-            "Please set 'MWS_MERCHANT_ID' in your settings."
+            "Please set 'MWS_SELLER_ID' in your settings."
         )
 
     if not _mws_connection:
