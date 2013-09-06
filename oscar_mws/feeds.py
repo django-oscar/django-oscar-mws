@@ -20,6 +20,10 @@ AmazonProfile = get_model('oscar_mws', 'AmazonProfile')
 FeedSubmission = get_model("oscar_mws", "FeedSubmission")
 
 
+class MwsFeedError(BaseException):
+    pass
+
+
 def handle_feed_submission_response(response):
     fsinfo = response.SubmitFeedResult.FeedSubmissionInfo
 
@@ -39,6 +43,10 @@ def handle_feed_submission_response(response):
     submission.processing_status = fsinfo.FeedProcessingStatus
     submission.save()
 
+    logger.info(
+        "Feed submission successful as ID {0}".format(submission.submission_id)
+    )
+
     return submission
 
 
@@ -53,6 +61,16 @@ def submit_product_feed(products, merchant_id=None, marketplace_ids=None,
     if not merchant_id:
         merchant_id = getattr(settings, "MWS_SELLER_ID")
 
+    if not merchant_id:
+        raise MwsFeedError("Seller ID required to submit feed")
+
+    logger.info(
+        "Updating {0} products for seller ID {1}".format(
+            len(products),
+            merchant_id,
+        )
+    )
+
     optional = {}
     if marketplace_ids:
         optional['MarketplaceIdList'] = marketplace_ids
@@ -61,6 +79,8 @@ def submit_product_feed(products, merchant_id=None, marketplace_ids=None,
     for product in products:
         writer.add_product(product)
     xml_data = writer.as_string(pretty_print=dry_run)
+
+    logger.debug("Product feed XML to be submitted:\n{0}".format(xml_data))
 
     if dry_run:
         print xml_data
@@ -81,7 +101,6 @@ def update_feed_submission(submission_id=None):
         FeedSubmissionIdList=[submission_id]
     )
     for result in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
-        print result
         try:
             submission = FeedSubmission.objects.get(
                 submission_id=result.FeedSubmissionId,
@@ -120,8 +139,7 @@ def update_feed_submissions(submission_id=None):
     if not submissions and submission_id is not None:
         return []
 
-    mws = get_connection()
-    response = mws.get_feed_submission_list(
+    response = get_connection().get_feed_submission_list(
         FeedSubmissionIdList=[s.submission_id for s in submissions]
     )
 
@@ -186,8 +204,10 @@ def process_submission_results(submission):
     If the submission was successful, we use the Inventory API to retrieve
     generated ASINs for new products and update the stock of the products.
     """
-    mws = get_connection()
-    response = mws.get_feed_submission_result(
+    logger.info(
+        'Requesting submission result for {0}'.format(submission.submission_id)
+    )
+    response = get_connection().get_feed_submission_result(
         FeedSubmissionId=submission.submission_id
     )
 
@@ -196,7 +216,7 @@ def process_submission_results(submission):
     for report in doc.xpath('.//Message/ProcessingReport'):
         submission_id = int(report.find('DocumentTransactionID').text)
 
-        if submission_id != submission.submission_id:
+        if unicode(submission_id) != unicode(submission.submission_id):
             logger.warning(
                 'received submission result for {0} when requesting '
                 '{1}'.format(submission_id, submission.submission_id)
@@ -255,7 +275,7 @@ def update_product_identifiers(products, marketplace_id=None):
         if not result.get('status') == 'Success':
             logger.info(
                 'Skipping product with SKU {0}, no info available'.format(
-                    response.attrib.get("Id")
+                    response.get("Id")
                 )
             )
             continue
@@ -271,8 +291,9 @@ def update_product_identifiers(products, marketplace_id=None):
                 }).update(asin=asin)
 
 
-def switch_product_fulfillment(products, merchant_id, fulfillment_by=None,
-                               fulfillment_center_id=None, dry_run=False):
+def switch_product_fulfillment(products, merchant_id=None, fulfillment_by=None,
+                               fulfillment_center_id="AMAZON_NA",
+                               dry_run=False):
     if not merchant_id:
         merchant_id = getattr(settings, "MWS_SELLER_ID")
 
@@ -285,6 +306,9 @@ def switch_product_fulfillment(products, merchant_id, fulfillment_by=None,
         )
 
     xml_data = writer.as_string(pretty_print=dry_run)
+    logger.debug(
+        "Submitting inventory feed with XML:\n{0}".format(xml_data)
+    )
     if dry_run:
         print xml_data
         return

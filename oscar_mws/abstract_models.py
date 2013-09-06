@@ -98,9 +98,10 @@ FEED_TYPES = (
 
 
 class AbstractFeedSubmission(models.Model):
-    submission_id = models.PositiveIntegerField(
+    submission_id = models.CharField(
         _("Submission ID"),
-        unique=True
+        max_length=64,
+        unique=True,
     )
     feed_type = models.CharField(
         _("Feed type"),
@@ -156,7 +157,7 @@ class AbstractFeedReport(models.Model):
     submission = models.OneToOneField(
         'oscar_mws.FeedSubmission',
         verbose_name=_("Feed submission"),
-        related_name='feed_report',
+        related_name='report',
     )
     status_code = models.CharField(_("Status code"), max_length=100)
     processed = models.PositiveIntegerField(_("Processed messages"))
@@ -248,11 +249,16 @@ class AbstractAmazonProfile(models.Model):
         default=FULFILLMENT_BY_MERCHANT,
     )
 
+    def get_item_type(self):
+        return self.product.product_class
+
     def get_standard_product_id(self):
-        return E.StandardProductID(
-            E.Type("UPC"),
-            E.Value(self.product.upc[:16]),
-        )
+        if 7 < len(self.product.upc) < 16:
+            return E.StandardProductID(
+                E.Type("UPC"),
+                E.Value(self.product.upc[:16]),
+            )
+        return None
 
     @property
     def sku(self):

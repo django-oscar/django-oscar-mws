@@ -11,7 +11,7 @@ class Migration(SchemaMigration):
         # Adding model 'FeedSubmission'
         db.create_table('oscar_mws_feedsubmission', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('submission_id', self.gf('django.db.models.fields.PositiveIntegerField')(unique=True)),
+            ('submission_id', self.gf('django.db.models.fields.CharField')(unique=True, max_length=64)),
             ('feed_type', self.gf('django.db.models.fields.CharField')(max_length=200)),
             ('date_created', self.gf('django.db.models.fields.DateTimeField')()),
             ('date_updated', self.gf('django.db.models.fields.DateTimeField')()),
@@ -449,7 +449,7 @@ class Migration(SchemaMigration):
             'feed_type': ('django.db.models.fields.CharField', [], {'max_length': '200'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'processing_status': ('django.db.models.fields.CharField', [], {'max_length': '200'}),
-            'submission_id': ('django.db.models.fields.PositiveIntegerField', [], {'unique': 'True'}),
+            'submission_id': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '64'}),
             'submitted_products': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'feed_submissions'", 'symmetrical': 'False', 'through': "orm['oscar_mws.ProductFeedSubmissionMessage']", 'to': "orm['catalogue.Product']"})
         },
         'oscar_mws.fulfillmentorder': {
