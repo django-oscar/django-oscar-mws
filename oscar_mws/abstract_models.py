@@ -269,33 +269,6 @@ class AbstractAmazonProfile(models.Model):
         abstract = True
 
 
-class AbstractMarketPlace(models.Model):
-    marketplace_id = models.CharField(_("Marketplace ID"), max_length=20)
-    name = models.CharField(_("Name"), max_length=200)
-
-    default_country_code = models.CharField(
-        _("Default country code"),
-        max_length=2
-    )
-    default_currency_code = models.CharField(
-        _("Default currency code"),
-        max_length=3
-    )
-    default_language_code = models.CharField(
-        _("Default language code"),
-    )
-    domain_name = models.CharField(_("Domain name"), max_length=255)
-
-    def __unicode__(self):
-        return "Market place {0} ({1})".format(
-            self.name,
-            self.marketplace_id
-        )
-
-    class Meta:
-        abstract = True
-
-
 class AbstractFulfillmentOrder(models.Model):
     RECEIVED = 'RECEIVED'
     INVALID = 'INVALID'

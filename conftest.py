@@ -12,6 +12,10 @@ from oscar import OSCAR_MAIN_TEMPLATE_DIR, get_core_apps
 
 def pytest_configure():
     from oscar.defaults import OSCAR_SETTINGS
+    from oscar_mws.defaults import OSCAR_MWS_SETTINGS
+
+    DEFAULT_SETTINGS = OSCAR_SETTINGS
+    DEFAULT_SETTINGS.update(OSCAR_MWS_SETTINGS)
 
     settings.configure(
         DATABASES={
@@ -89,9 +93,5 @@ def pytest_configure():
                 'ENGINE': 'haystack.backends.simple_backend.SimpleEngine',
             },
         },
-        MWS_SELLER_ID='fakemerchantid',
-        MWS_MARKETPLACE_ID='fakemarketplace',
-        # Django ORM field description for seller SKU relative to Product model
-        MWS_SELLER_SKU_FIELD='stockrecord__partner_sku',
-        **OSCAR_SETTINGS
+        **DEFAULT_SETTINGS
     )

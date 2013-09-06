@@ -53,6 +53,7 @@ class Migration(SchemaMigration):
             ('release_date', self.gf('django.db.models.fields.DateTimeField')(null=True, blank=True)),
             ('item_package_quantity', self.gf('django.db.models.fields.PositiveIntegerField')(null=True, blank=True)),
             ('number_of_items', self.gf('django.db.models.fields.PositiveIntegerField')(null=True, blank=True)),
+            ('fulfillment_by', self.gf('django.db.models.fields.CharField')(default='MFN', max_length=3)),
         ))
         db.send_create_signal('oscar_mws', ['AmazonProfile'])
 
@@ -412,6 +413,7 @@ class Migration(SchemaMigration):
         'oscar_mws.amazonprofile': {
             'Meta': {'object_name': 'AmazonProfile'},
             'asin': ('django.db.models.fields.CharField', [], {'max_length': '10', 'blank': 'True'}),
+            'fulfillment_by': ('django.db.models.fields.CharField', [], {'default': "'MFN'", 'max_length': '3'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'item_package_quantity': ('django.db.models.fields.PositiveIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'launch_date': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
