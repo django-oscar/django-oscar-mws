@@ -90,7 +90,7 @@
 
                     <td>
                         {% if product.amazon_profile %}
-                            {% trans "TODO: need to add that" %}
+                            {{ product.feed_submissions.all.0.date_updated|date:"jS M Y H:i" }}
                         {% else %}
                             {% trans "Not submitted" %}
                         {% endif %}

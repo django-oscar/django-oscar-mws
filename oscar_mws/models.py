@@ -17,10 +17,6 @@ class AmazonProfile(am.AbstractAmazonProfile):
     pass
 
 
-class ProductFeedSubmissionMessage(am.AbstractProductFeedSubmissionMessage):
-    pass
-
-
 class FulfillmentOrder(am.AbstractFulfillmentOrder):
     pass
 

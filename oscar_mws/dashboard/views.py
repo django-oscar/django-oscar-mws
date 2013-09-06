@@ -6,6 +6,8 @@ from django.utils.translation import ugettext_lazy as _
 from django.core.urlresolvers import reverse, reverse_lazy
 from django.views.generic import DetailView, ListView, RedirectView
 
+from boto.mws.exception import InvalidParameterValue
+
 from .. import feeds
 from .forms import MwsProductFeedForm
 
@@ -88,8 +90,16 @@ class ProductListView(FormMixin, ListView):
             )
 
     def handle_update_product_identifiers(self):
-        feeds.update_product_identifiers(Product.objects.all())
-        messages.info(self.request, "Updated product ASINs")
+        try:
+            feeds.update_product_identifiers(Product.objects.all())
+        except InvalidParameterValue as exc:
+            messages.error(
+                self.request,
+                "An error occurred retrieving product data from "
+                "Amazon: {0}".format(exc.message)
+            )
+        else:
+            messages.info(self.request, "Updated product ASINs")
 
     def form_valid(self, form):
         selected = form.cleaned_data.get('submission_selection')

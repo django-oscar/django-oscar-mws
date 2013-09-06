@@ -121,7 +121,6 @@ class AbstractFeedSubmission(models.Model):
         'catalogue.Product',
         verbose_name=_("Submitted products"),
         related_name="feed_submissions",
-        through="ProductFeedSubmissionMessage"
     )
 
     def save(self, **kwargs):
@@ -135,22 +134,7 @@ class AbstractFeedSubmission(models.Model):
 
     class Meta:
         abstract = True
-
-
-class AbstractProductFeedSubmissionMessage(models.Model):
-    product = models.ForeignKey(
-        'catalogue.Product',
-        verbose_name=_("Product"),
-    )
-    submission = models.ForeignKey(
-        'FeedSubmission',
-        verbose_name=_("Feed submission"),
-    )
-    message_id = models.PositiveIntegerField()
-
-    class Meta:
-        abstract = True
-        unique_together = (('submission', 'message_id'),)
+        ordering = ['-date_updated']
 
 
 class AbstractFeedReport(models.Model):

@@ -20,10 +20,18 @@ class Migration(SchemaMigration):
         ))
         db.send_create_signal('oscar_mws', ['FeedSubmission'])
 
+        # Adding M2M table for field submitted_products on 'FeedSubmission'
+        db.create_table('oscar_mws_feedsubmission_submitted_products', (
+            ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
+            ('feedsubmission', models.ForeignKey(orm['oscar_mws.feedsubmission'], null=False)),
+            ('product', models.ForeignKey(orm['catalogue.product'], null=False))
+        ))
+        db.create_unique('oscar_mws_feedsubmission_submitted_products', ['feedsubmission_id', 'product_id'])
+
         # Adding model 'FeedReport'
         db.create_table('oscar_mws_feedreport', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('submission', self.gf('django.db.models.fields.related.OneToOneField')(related_name='feed_report', unique=True, to=orm['oscar_mws.FeedSubmission'])),
+            ('submission', self.gf('django.db.models.fields.related.OneToOneField')(related_name='report', unique=True, to=orm['oscar_mws.FeedSubmission'])),
             ('status_code', self.gf('django.db.models.fields.CharField')(max_length=100)),
             ('processed', self.gf('django.db.models.fields.PositiveIntegerField')()),
             ('successful', self.gf('django.db.models.fields.PositiveIntegerField')()),
@@ -56,18 +64,6 @@ class Migration(SchemaMigration):
             ('fulfillment_by', self.gf('django.db.models.fields.CharField')(default='MFN', max_length=3)),
         ))
         db.send_create_signal('oscar_mws', ['AmazonProfile'])
-
-        # Adding model 'ProductFeedSubmissionMessage'
-        db.create_table('oscar_mws_productfeedsubmissionmessage', (
-            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('product', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['catalogue.Product'])),
-            ('submission', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['oscar_mws.FeedSubmission'])),
-            ('message_id', self.gf('django.db.models.fields.PositiveIntegerField')()),
-        ))
-        db.send_create_signal('oscar_mws', ['ProductFeedSubmissionMessage'])
-
-        # Adding unique constraint on 'ProductFeedSubmissionMessage', fields ['submission', 'message_id']
-        db.create_unique('oscar_mws_productfeedsubmissionmessage', ['submission_id', 'message_id'])
 
         # Adding model 'FulfillmentOrder'
         db.create_table('oscar_mws_fulfillmentorder', (
@@ -119,11 +115,11 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
-        # Removing unique constraint on 'ProductFeedSubmissionMessage', fields ['submission', 'message_id']
-        db.delete_unique('oscar_mws_productfeedsubmissionmessage', ['submission_id', 'message_id'])
-
         # Deleting model 'FeedSubmission'
         db.delete_table('oscar_mws_feedsubmission')
+
+        # Removing M2M table for field submitted_products on 'FeedSubmission'
+        db.delete_table('oscar_mws_feedsubmission_submitted_products')
 
         # Deleting model 'FeedReport'
         db.delete_table('oscar_mws_feedreport')
@@ -133,9 +129,6 @@ class Migration(SchemaMigration):
 
         # Deleting model 'AmazonProfile'
         db.delete_table('oscar_mws_amazonprofile')
-
-        # Deleting model 'ProductFeedSubmissionMessage'
-        db.delete_table('oscar_mws_productfeedsubmissionmessage')
 
         # Deleting model 'FulfillmentOrder'
         db.delete_table('oscar_mws_fulfillmentorder')
@@ -428,7 +421,7 @@ class Migration(SchemaMigration):
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'processed': ('django.db.models.fields.PositiveIntegerField', [], {}),
             'status_code': ('django.db.models.fields.CharField', [], {'max_length': '100'}),
-            'submission': ('django.db.models.fields.related.OneToOneField', [], {'related_name': "'feed_report'", 'unique': 'True', 'to': "orm['oscar_mws.FeedSubmission']"}),
+            'submission': ('django.db.models.fields.related.OneToOneField', [], {'related_name': "'report'", 'unique': 'True', 'to': "orm['oscar_mws.FeedSubmission']"}),
             'successful': ('django.db.models.fields.PositiveIntegerField', [], {}),
             'warnings': ('django.db.models.fields.PositiveIntegerField', [], {})
         },
@@ -442,7 +435,7 @@ class Migration(SchemaMigration):
             'type': ('django.db.models.fields.CharField', [], {'max_length': '100'})
         },
         'oscar_mws.feedsubmission': {
-            'Meta': {'object_name': 'FeedSubmission'},
+            'Meta': {'ordering': "['-date_updated']", 'object_name': 'FeedSubmission'},
             'date_created': ('django.db.models.fields.DateTimeField', [], {}),
             'date_submitted': ('django.db.models.fields.DateTimeField', [], {}),
             'date_updated': ('django.db.models.fields.DateTimeField', [], {}),
@@ -450,7 +443,7 @@ class Migration(SchemaMigration):
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'processing_status': ('django.db.models.fields.CharField', [], {'max_length': '200'}),
             'submission_id': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '64'}),
-            'submitted_products': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'feed_submissions'", 'symmetrical': 'False', 'through': "orm['oscar_mws.ProductFeedSubmissionMessage']", 'to': "orm['catalogue.Product']"})
+            'submitted_products': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'feed_submissions'", 'symmetrical': 'False', 'to': "orm['catalogue.Product']"})
         },
         'oscar_mws.fulfillmentorder': {
             'Meta': {'object_name': 'FulfillmentOrder'},
@@ -478,13 +471,6 @@ class Migration(SchemaMigration):
             'shipment_events': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'fulfillment_shipments'", 'symmetrical': 'False', 'to': "orm['order.ShippingEvent']"}),
             'shipment_id': ('django.db.models.fields.CharField', [], {'max_length': '64'}),
             'status': ('django.db.models.fields.CharField', [], {'max_length': '24'})
-        },
-        'oscar_mws.productfeedsubmissionmessage': {
-            'Meta': {'unique_together': "(('submission', 'message_id'),)", 'object_name': 'ProductFeedSubmissionMessage'},
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'message_id': ('django.db.models.fields.PositiveIntegerField', [], {}),
-            'product': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.Product']"}),
-            'submission': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['oscar_mws.FeedSubmission']"})
         },
         'oscar_mws.shipmentpackage': {
             'Meta': {'object_name': 'ShipmentPackage'},

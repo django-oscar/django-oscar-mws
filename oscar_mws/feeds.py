@@ -93,7 +93,10 @@ def submit_product_feed(products, merchant_id=None, marketplace_ids=None,
         content_type='text/xml',
         **optional
     )
-    return handle_feed_submission_response(response)
+    submission = handle_feed_submission_response(response)
+    for product in products:
+        submission.submitted_products.add(product)
+    return submission
 
 
 def update_feed_submission(submission_id=None):
