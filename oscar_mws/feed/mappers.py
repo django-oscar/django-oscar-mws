@@ -6,27 +6,9 @@ from lxml.builder import E
 from datetime import datetime, date
 
 from django.db.models import get_model
-from django.core.exceptions import ImproperlyConfigured
-
-from oscar.core.loading import _pluck_classes
 
 AmazonProfile = get_model('oscar_mws', 'AmazonProfile')
 ProductAttributeValue = get_model('catalogue', 'ProductAttributeValue')
-
-
-def load_mapper(name, default=None):
-    name = name or default
-    try:
-        module_label, class_name = name.rsplit('.', 1)
-    except ValueError:
-        raise ImproperlyConfigured(
-            "cannot find product mapper class {0}".format(name)
-        )
-    imported_module = __import__(module_label, fromlist=[class_name])
-    try:
-        return _pluck_classes([imported_module], [class_name])[0]
-    except IndexError:
-        return None
 
 
 class BaseProductDataMapper(object):

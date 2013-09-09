@@ -7,7 +7,8 @@ from lxml.builder import E, ElementMaker
 from django.conf import settings
 from django.db.models import get_model
 
-from .feed.mappers import load_mapper
+from .feed import mappers
+from .utils import load_class
 
 logger = logging.getLogger('oscar_mws')
 
@@ -68,19 +69,18 @@ class BaseFeedWriter(object):
 
 
 class ProductFeedWriter(BaseFeedWriter):
-    mapper_class = load_mapper(
-        getattr(settings, 'MWS_PRODUCT_MAPPER', None),
-        default='feed.mappers.ProductMapper',
-    )
+    mapper_class = mappers.ProductMapper
 
-    def __init__(self, merchant_id, purge_and_replace=False, mapper=None):
+    def __init__(self, merchant_id, purge_and_replace=False):
         super(ProductFeedWriter, self).__init__(
             message_type='Product',
             merchant_id=merchant_id,
             purge_and_replace=purge_and_replace,
         )
 
-        self.mapper_class = mapper or self.mapper_class
+        mapper = getattr(settings, 'MWS_PRODUCT_MAPPER', None)
+        self.mapper_class = load_class(mapper) or self.mapper_class
+
         self.msg_counter = itertools.count(1)
         self.messages = {}
 
@@ -108,10 +108,7 @@ class ProductFeedWriter(BaseFeedWriter):
 
 
 class InventoryFeedWriter(BaseFeedWriter):
-    mapper_class = load_mapper(
-        getattr(settings, 'MWS_INVENTORY_MAPPER', None),
-        default='feed.mappers.InventoryProductMapper',
-    )
+    mapper_class = mappers.InventoryProductMapper
 
     def __init__(self, merchant_id, purge_and_replace=False, mapper=None):
         super(InventoryFeedWriter, self).__init__(
@@ -119,6 +116,8 @@ class InventoryFeedWriter(BaseFeedWriter):
             merchant_id=merchant_id,
             purge_and_replace=purge_and_replace,
         )
+        mapper = getattr(settings, 'MWS_INVENTORY_MAPPER', None)
+        self.mapper_class = load_class(mapper) or self.mapper_class
         self.msg_counter = itertools.count(1)
         self.messages = {}
 

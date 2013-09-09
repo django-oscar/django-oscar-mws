@@ -10,9 +10,13 @@ class OscarMwsDashboardApplication(Application):
     name = 'mws-dashboard'
 
     product_list_view = views.ProductListView
+
     submission_list_view = views.SubmissionListView
     submission_detail_view = views.SubmissionDetailView
     submission_update_view = views.SubmissionUpdateView
+
+    fulfillment_order_create_view = views.FulfillmentOrderCreateView
+    fulfillment_order_update_view = views.FulfillmentOrderUpdateView
 
     def get_urls(self):
         urlpatterns = patterns(
@@ -36,7 +40,17 @@ class OscarMwsDashboardApplication(Application):
                 r'^submission/update/(?P<submission_id>\d+)/$',
                 self.submission_update_view.as_view(),
                 name='submission-update'
-            )
+            ),
+            url(
+                r'^fulfillment/create/(?P<order_number>\d+)/$',
+                self.fulfillment_order_create_view.as_view(),
+                name='fulfillment-create'
+            ),
+            url(
+                r'^fulfillment/update/(?P<order_number>\d+)/$',
+                self.fulfillment_order_update_view.as_view(),
+                name='fulfillment-update'
+            ),
         )
         return self.post_process_urls(urlpatterns)
 

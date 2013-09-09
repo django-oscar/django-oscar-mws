@@ -6,8 +6,11 @@ from django.conf import settings
 from django.db.models import get_model
 from django.utils.translation import ugettext_lazy as _
 
-from .utils import convert_camel_case
+from boto.mws.response import ResponseElement
+from boto.mws.exception import ResponseError
+
 from .connection import get_connection
+from .utils import load_class, convert_camel_case
 
 logger = logging.getLogger('oscar_mws')
 
@@ -18,6 +21,7 @@ ShippingEventType = get_model('order', 'ShippingEventType')
 ShipmentPackage = get_model('oscar_mws', 'ShipmentPackage')
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 FulfillmentShipment = get_model('oscar_mws', 'FulfillmentShipment')
+FulfillmentOrderLine = get_model('oscar_mws', 'FulfillmentOrderLine')
 
 
 SHIPPING_STANDARD = 'Standard'
@@ -42,10 +46,16 @@ FILL_OR_KILL = 'FillOrKill'
 FILL_ALL = 'FillAll'
 FILL_ALL_AVAILABLE = 'FillAllAvailable'
 
+MWS_DEFAULT_SHIPPING_SPEED = getattr(settings, 'MWS_DEFAULT_SHIPPING_SPEED')
+
 
 class BaseAdapter(object):
     REQUIRED_FIELDS = []
     OPTIONAL_FIELDS = []
+
+    def __init__(self, merchant_id, marketplace_id=None):
+        self.merchant_id = merchant_id
+        self.marketplace = marketplace_id
 
     def get_required_fields(self, **kwargs):
         required_fields = {}
@@ -66,7 +76,7 @@ class BaseAdapter(object):
     def get_fields(self, **kwargs):
         fields = self.get_required_fields(**kwargs)
         fields.update(self.get_optional_fields(**kwargs))
-        return fields
+        return ResponseElement(name=self.__class__, attrs=fields)
 
 
 class OrderLineAdapter(BaseAdapter):
@@ -82,10 +92,8 @@ class OrderLineAdapter(BaseAdapter):
         'OrderItemDisposition',
     ]
 
-    def __init__(self, line, merchant_id, marketplace=None):
-        self.merchant_id = merchant_id
-        self.marketplace = marketplace
-
+    def __init__(self, line, merchant_id, marketplace_id=None):
+        super(OrderLineAdapter, self).__init__(merchant_id, marketplace_id)
         self.line = line
 
     def get_seller_sku(self, **kwargs):
@@ -98,10 +106,10 @@ class OrderLineAdapter(BaseAdapter):
         return self.line.quantity
 
     def get_per_unit_declared_value(self, **kwargs):
-        return {
+        return ResponseElement(attrs={
             'CurrencyCode': settings.OSCAR_DEFAULT_CURRENCY,
-            'Value': self.line.unit_price_incl_tax,
-        }
+            'Value': str(self.line.unit_price_incl_tax),
+        })
 
     def get_displayable_comment(self, **kwargs):
         return None
@@ -115,36 +123,34 @@ class OrderLineAdapter(BaseAdapter):
 
 class OrderAdapter(BaseAdapter):
     REQUIRED_FIELDS = [
-        'SellerFulfillmentOrderId',
         'DisplayableOrderId',
         'DisplayableOrderDateTime',
+        'DisplayableOrderComment',
         'DestinationAddress',
+        'SellerFulfillmentOrderId',
+        'ShippingSpeedCategory',
     ]
     OPTIONAL_FIELDS = [
         'NotificationEmailList',
-        'DisplayableOrderComment',
     ]
+    line_adapter_class = OrderLineAdapter
 
-    line_adapter_class = getattr(
-        settings,
-        'MWS_ORDER_LINE_ADAPTER',
-        OrderLineAdapter
-    )
+    def __init__(self, order, merchant_id, marketplace_id=None):
+        super(OrderAdapter, self).__init__(merchant_id, marketplace_id)
+        custom_adapter = getattr(settings, 'MWS_ORDER_LINE_ADAPTER', None)
+        if custom_adapter:
+            self.line_adapter_class = load_class(custom_adapter)
 
-    def __init__(self, order, merchant_id, marketplace=None):
-        self.merchant_id = merchant_id
-        self.marketplace = marketplace
+        self.line_adapters = {}
 
         self.order = order
 
         self.addresses = self.get_fulfillment_addresses()
-        print self.addresses
         self.has_mutliple_destinations = bool(len(self.addresses) > 1)
 
         self._lines = {}
         for address in self.addresses:
             self._lines[address.id] = self.get_lines(address)
-        print self._lines
 
     def get_suffix(self, address, **kwargs):
         return "{0:03d}".format(self.addresses.index(address) + 1)
@@ -164,30 +170,47 @@ class OrderAdapter(BaseAdapter):
             )
         return self.order.number
 
+    def get_line_adapter(self, line):
+        try:
+            adapter = self.line_adapters[line.id]
+        except KeyError:
+            adapter = self.line_adapter_class(
+                line=line,
+                merchant_id=self.merchant_id
+            )
+            self.line_adapters[line.id] = adapter
+        return self.line_adapters[line.id]
+
     def get_displayable_order_id(self, address, **kwargs):
         return self.get_seller_fulfillment_order_id(address, **kwargs)
 
     def get_displayable_order_date_time(self, address, **kwargs):
-        return self.order.date_placed.isoformat(),
+        return self.order.date_placed.isoformat()
 
     def get_displayable_order_comment(self, address, **kwargs):
         try:
             comment = self.order.get_comment()
         except AttributeError:
-            comment = None
+            comment = "Thanks for placing an order with us!"
         return comment
 
     def get_destination_address(self, address, **kwargs):
-        return {
-            'Name': address.name(),
-            'Line1': address.line1,
-            'Line2': address.line2,
-            'line3': address.line3,
-            'City': address.city,
-            'CountryCode': address.country.iso_3166_1_a2,
-            'StateOrProvinceCode': address.state,
-            'PostalCode': address.postcode,
-        }
+        return ResponseElement(
+            name="DestinationAddress",
+            attrs={
+                'Name': address.name,
+                'Line1': address.line1,
+                'Line2': address.line2,
+                'line3': address.line3,
+                'City': address.city,
+                'CountryCode': address.country.iso_3166_1_a2,
+                'StateOrProvinceCode': address.state,
+                'PostalCode': address.postcode,
+            }
+        )
+
+    def get_shipping_speed_category(self, **kwargs):
+        return MWS_DEFAULT_SHIPPING_SPEED
 
     def get_notification_email_list(self, address, **kwargs):
         if not self.order.email:
@@ -200,12 +223,7 @@ class OrderAdapter(BaseAdapter):
         except AttributeError:
             lines = self.order.lines.all()
 
-        adapted_lines = []
-        for line in lines:
-            adapted_lines.append(
-                self.line_adapter_class(line, merchant_id=self.merchant_id)
-            )
-        return adapted_lines
+        return [self.get_line_adapter(l) for l in lines]
 
     def get_fields(self, address=None, **kwargs):
         if address is None:
@@ -227,16 +245,18 @@ class OrderAdapter(BaseAdapter):
         return order_fields
 
 
-class OutboundShipmentCreator(object):
-    order_adapter_class = getattr(
-        settings,
-        'MWS_ORDER_ADAPTER',
-        OrderAdapter
-    )
+class FulfillmentOrderCreator(object):
+    order_adapter_class = OrderAdapter
 
-    def __init__(self, merchant_id=None):
-        self.merchant_id = merchant_id or getattr(settings, 'MWS_MERCHANT_ID')
+    def __init__(self, merchant_id=None, order_adapter_class=None):
+        custom_adapter = getattr(settings, 'MWS_ORDER_ADAPTER', None)
+        if custom_adapter:
+            self.order_adapter_class = load_class(custom_adapter)
+
+        self.merchant_id = merchant_id or getattr(settings, 'MWS_SELLER_ID')
         self.mws_connection = get_connection()
+
+        self.errors = {}
 
     def get_order_adapter(self, order):
         return self.order_adapter_class(
@@ -244,20 +264,45 @@ class OutboundShipmentCreator(object):
             merchant_id=self.merchant_id,
         )
 
-    def create_shipment_from_order(self, order, **kwargs):
+    def create_fulfillment_order(self, order, lines=None, **kwargs):
         adapter = self.get_order_adapter(order)
 
+        fulfillment_orders = []
         for address in adapter.addresses:
-            order_kwargs = adapter.get_fields(address=address)
-            order_kwargs
+            fulfillment_id = adapter.get_seller_fulfillment_order_id(address)
+            try:
+                fulfillment_order = FulfillmentOrder.objects.get(
+                    fulfillment_id=fulfillment_id,
+                    order=order,
+                )
+            except FulfillmentOrder.DoesNotExist:
+                fulfillment_order = FulfillmentOrder(
+                    fulfillment_id=fulfillment_id,
+                    order=order,
+                )
+                try:
+                    self.mws_connection.create_fulfillment_order(
+                        **adapter.get_fields(address=address)
+                    )
+                except ResponseError as exc:
+                    self.errors[fulfillment_id] = exc.message
+                    continue
 
-            outbount_shipment, __ = FulfillmentShipment.objects.get_or_create(
-                shipment_id=adapter.get_seller_fulfillment_order_id(
-                    address
-                ),
-                order=order,
-            )
-            #self.mws_connection.create_fulfillment_order(**order_kwargs)
+                fulfillment_order.order = order
+                fulfillment_order.save()
+            else:
+                self.errors[fulfillment_id] = _("Order already submitted.")
+
+            fulfillment_orders.append(fulfillment_order)
+
+            for line_adapter in adapter.get_lines(address=address):
+                FulfillmentOrderLine.objects.get_or_create(
+                    line=line_adapter.line,
+                    fulfillment_order=fulfillment_order,
+                    order_item_id=line_adapter.get_seller_fulfillment_order_item_id(),
+                )
+
+        return fulfillment_orders
 
 
 def update_fulfillment_order(fulfillment_order):
@@ -275,8 +320,7 @@ def update_fulfillment_order(fulfillment_order):
     fulfillment_order.status = forder.FulfillmentOrderStatus
     fulfillment_order.save()
 
-    shipment_elem = response.GetFulfillmentOrderResult.FulfillmentShipment
-    for fshipment in getattr(shipment_elem, 'member', []):
+    for fshipment in response.GetFulfillmentOrderResult.FulfillmentShipment:
         try:
             shipment = FulfillmentShipment.objects.get(
                 shipment_id=fshipment.AmazonShipmentId
@@ -324,28 +368,50 @@ def update_fulfillment_order(fulfillment_order):
             )
             [shipping_event.lines.add(l) for l in fulfillment_lines]
 
-    shipping_note = []
-    package_elem = fshipment.FulfillmentShipmentPackage
-    for fpackage in getattr(package_elem, 'member', []):
-        ShipmentPackage.objects.get_or_create(
-            tracking_number=fpackage.TrackingNumber,
-            carrier_code=fpackage.CarrierCode,
-            fulfillment_shipment=shipment,
-        )
-        shipping_note.append(
-            '* Shipped package via {0} with tracking number {1}'.format(
-                fpackage.CarrierCode,
-                fpackage.TrackingNumber,
+        shipping_note = []
+        for fpackage in fshipment.FulfillmentShipmentPackage:
+            ShipmentPackage.objects.get_or_create(
+                tracking_number=fpackage.TrackingNumber,
+                carrier_code=fpackage.CarrierCode,
+                fulfillment_shipment=shipment,
             )
-        )
-    if shipping_note:
-        shipping_event.notes = "\n".join(shipping_note)
-        shipping_event.save()
+            shipping_note.append(
+                '* Shipped package via {0} with tracking number {1}'.format(
+                    fpackage.CarrierCode,
+                    fpackage.TrackingNumber,
+                )
+            )
+        if shipping_note:
+            shipping_event.notes = "\n".join(shipping_note)
+            shipping_event.save()
     return fulfillment_order
 
 
-def update_fulfillment_orders():
-    mws_connection = get_connection()
-    current_datetime = now()
+def update_fulfillment_orders(fulfillment_orders):
+    processed_orders = []
+    for order in fulfillment_orders:
+        processed_orders.append(update_fulfillment_order(order))
+    return processed_orders
 
-    #TODO get the timestamp of the last update
+
+def get_all_fulfillment_orders(query_datetime=None):
+    kwargs = {}
+    if query_datetime:
+        kwargs['QueryStartDateTime'] = query_datetime.isoformat()
+
+    response = get_connection().list_all_fulfillment_orders(**kwargs)
+    print response
+
+    processed_orders = []
+    for forder in response.ListAllFulfillmentOrdersResult.FulfillmentOrders:
+        fulfillment_order, __ = FulfillmentOrder.objects.get_or_create(
+            fulfillment_id=forder.SellerFulfillmentOrderId
+        )
+
+        reported_date = du_parser.parse(forder.StatusUpdatedDateTime)
+        if reported_date == fulfillment_order.date_updated:
+            return fulfillment_order
+
+        fulfillment_order.status = forder.FulfillmentOrderStatus
+        fulfillment_order.save()
+    return processed_orders

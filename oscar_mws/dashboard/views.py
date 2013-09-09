@@ -1,21 +1,27 @@
-from django.http import Http404
-from django.db.models import Q, get_model
+from django.http import Http404, HttpResponseRedirect
+from django.views import generic
 from django.contrib import messages
+from django.db.models import Q, get_model
 from django.views.generic.edit import FormMixin
 from django.utils.translation import ugettext_lazy as _
 from django.core.urlresolvers import reverse, reverse_lazy
-from django.views.generic import DetailView, ListView, RedirectView
 
 from boto.mws.exception import InvalidParameterValue
 
+from django import forms
+
 from .. import feeds
 from .forms import MwsProductFeedForm
+from ..fulfillment import (FulfillmentOrderCreator, update_fulfillment_orders,
+                           get_all_fulfillment_orders)
 
+Order = get_model('order', 'Order')
 Product = get_model('catalogue', 'Product')
 FeedSubmission = get_model("oscar_mws", "FeedSubmission")
+FulfillmentOrder = get_model("oscar_mws", "FulfillmentOrder")
 
 
-class ProductListView(FormMixin, ListView):
+class ProductListView(FormMixin, generic.ListView):
     template_name = 'oscar_mws/dashboard/product_list.html'
     context_object_name = 'product_list'
     form_class = MwsProductFeedForm
@@ -123,7 +129,7 @@ class ProductListView(FormMixin, ListView):
         return reverse('mws-dashboard:product-list')
 
 
-class SubmissionListView(ListView):
+class SubmissionListView(generic.ListView):
     template_name = 'oscar_mws/dashboard/submission_list.html'
     context_object_name = 'submission_list'
     model = FeedSubmission
@@ -134,7 +140,7 @@ class SubmissionListView(ListView):
         ).order_by('-date_updated')
 
 
-class SubmissionDetailView(DetailView):
+class SubmissionDetailView(generic.DetailView):
     template_name = 'oscar_mws/dashboard/submission_detail.html'
     pk_url_kwarg = 'submission_id'
     context_object_name = 'submission'
@@ -149,7 +155,7 @@ class SubmissionDetailView(DetailView):
         return submission[0]
 
 
-class SubmissionUpdateView(RedirectView):
+class SubmissionUpdateView(generic.RedirectView):
     permanent = False
     redirect_url = reverse_lazy('mws-dashboard:submission-list')
 
@@ -176,3 +182,69 @@ class SubmissionUpdateView(RedirectView):
             feeds.process_submission_results(submission)
 
         return self.redirect_url
+
+
+class FulfillmentOrderCreateView(generic.FormView):
+    model = FulfillmentOrder
+    form_class = forms.Form
+
+    def form_valid(self, form):
+        order_number = self.kwargs.get('order_number')
+        if not order_number:
+            messages.error(
+                self.request,
+                _("No order number provided, cannot submit to MWS")
+            )
+            return HttpResponseRedirect(self.get_order_list_url())
+
+        try:
+            order = Order.objects.get(number=order_number)
+        except Order.DoesNotExist:
+            messages.error(
+                self.request,
+                _("Cannot find order with ID #{0}").format(order_number)
+            )
+            return HttpResponseRedirect(self.get_order_list_url())
+
+        order_creator = FulfillmentOrderCreator()
+        submitted_orders = order_creator.create_fulfillment_order(order)
+
+        if not order_creator.errors:
+            messages.info(
+                self.request,
+                _("Successfully submitted {0} orders to Amazon").format(
+                    len(submitted_orders)
+                )
+            )
+        else:
+            for order_id, error in order_creator.errors.iteritems():
+                messages.error(
+                    self.request,
+                    _("Error submitting order {0} to Amazon: {1}").format(
+                        order_id,
+                        error
+                    )
+                )
+        return HttpResponseRedirect(self.get_order_url())
+
+    def get_order_url(self):
+        return reverse(
+            'dashboard:order-detail',
+            kwargs={'number': self.kwargs.get('order_number')}
+        )
+
+    def get_order_list_url(self):
+        return reverse("dashboard:order-list")
+
+
+class FulfillmentOrderUpdateView(generic.RedirectView):
+    permanent = False
+
+    def get_redirect_url(self, order_number=None):
+        update_fulfillment_orders(
+            FulfillmentOrder.objects.filter(order__number=order_number)
+        )
+        return reverse(
+            'dashboard:order-detail',
+            kwargs={'number': order_number}
+        )

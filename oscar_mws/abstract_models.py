@@ -288,7 +288,7 @@ class AbstractFulfillmentOrder(models.Model):
     order = models.ForeignKey(
         'order.Order',
         verbose_name=_("Order"),
-        related_name="outbound_shipments"
+        related_name="fulfillment_orders"
     )
 
     lines = models.ManyToManyField(
@@ -304,6 +304,10 @@ class AbstractFulfillmentOrder(models.Model):
         blank=True
     )
     date_updated = models.DateTimeField(_("Date last updated"))
+
+    def save(self, *args, **kwargs):
+        self.date_updated = tz_now()
+        return super(AbstractFulfillmentOrder, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return "Outbound shipment for #{0}".format(self.fulfillment_id)
@@ -321,6 +325,7 @@ class AbstractFulfillmentOrderLine(models.Model):
     fulfillment_order = models.ForeignKey(
         'oscar_mws.FulfillmentOrder',
         verbose_name=_("Fulfillment order"),
+        related_name="fulfillment_lines",
     )
     order_item_id = models.CharField(
         _("Seller fulfillment order item ID"),

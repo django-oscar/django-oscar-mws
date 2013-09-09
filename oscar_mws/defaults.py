@@ -8,6 +8,8 @@ MWS_MARKETPLACE_ID = os.environ.get("MWS_MARKETPLACE_ID")
 # Django ORM field description for seller SKU relative to Product model
 MWS_SELLER_SKU_FIELD = 'stockrecord__partner_sku'
 
+MWS_DEFAULT_SHIPPING_SPEED = 'Standard'
+
 MWS_DASHBOARD_NAVIGATION = [
     {
         'label': _('Amazon MWS'),
