@@ -15,14 +15,14 @@ def get_connection(aws_access_key_id=None, aws_secret_access_key=None,
     if not aws_access_key_id:
         aws_access_key_id = getattr(
             settings,
-            'AWS_ACCESS_KEY_ID',
-            os.environ.get('AWS_ACCESS_KEY_ID')
+            'MWS_AWS_ACCESS_KEY_ID',
+            os.environ.get('MWS_AWS_ACCESS_KEY_ID')
         )
     if not aws_secret_access_key:
         aws_secret_access_key = getattr(
             settings,
-            'AWS_SECRET_ACCESS_KEY',
-            os.environ.get('AWS_SECRET_ACCESS_KEY')
+            'MWS_AWS_SECRET_ACCESS_KEY',
+            os.environ.get('MWS_AWS_SECRET_ACCESS_KEY')
         )
 
     try:

@@ -78,8 +78,8 @@ def pytest_configure():
         AUTHENTICATION_BACKENDS=(
             'django.contrib.auth.backends.ModelBackend',
         ),
-        AWS_ACCESS_KEY_ID='fakeaccesskey',
-        AWS_SECRET_ACCESS_KEY='fakesecret',
+        MWS_AWS_ACCESS_KEY_ID='fakeaccesskey',
+        MWS_AWS_SECRET_ACCESS_KEY='fakesecret',
         COMPRESS_ENABLED=True,
         COMPRESS_OFFLINE=False,
         COMPRESS_PRECOMPILERS=(
