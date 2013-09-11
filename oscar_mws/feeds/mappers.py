@@ -81,6 +81,7 @@ class BaseProductMapper(object):
 
 
 class ProductMapper(BaseProductMapper):
+    PRODUCT_DATA_MAPPERS = {}
     BASE_ATTRIBUTES = [
         "SKU",
         "StandardProductID",

@@ -9,7 +9,7 @@ from oscar_testsupport.factories import create_order
 
 from oscar_mws.test import mixins, factories
 
-from oscar_mws.fulfillment import update_fulfillment_order
+from oscar_mws.fulfillment.gateway import update_fulfillment_order
 
 ShippingEvent = get_model('order', 'ShippingEvent')
 ShippingEventType = get_model('order', 'ShippingEventType')
@@ -70,6 +70,7 @@ class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
         self.assertEquals(packages[0].carrier_code, 'UPS')
 
         shipping_events = ShippingEvent.objects.all()
+        print shipping_events
         self.assertEquals(len(shipping_events), 2)
 
         self.assertItemsEqual(

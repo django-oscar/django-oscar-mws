@@ -7,9 +7,9 @@ from dateutil.parser import parse as du_parse
 from django.conf import settings
 from django.db.models import get_model
 
-from . import writers
-from . import abstract_models as am
-from .connection import get_connection
+from .. import abstract_models as am
+from ..connection import get_connection
+from ..feeds import writers
 
 logger = logging.getLogger('oscar_mws')
 

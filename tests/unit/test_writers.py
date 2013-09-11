@@ -8,7 +8,8 @@ from django.utils.timezone import now
 
 from oscar_testsupport.factories import create_product
 
-from oscar_mws.writers import ProductFeedWriter, ProductMapper
+from oscar_mws.feeds.mappers import ProductMapper
+from oscar_mws.feeds.writers import ProductFeedWriter
 
 UTC_NOW = now()
 
@@ -21,13 +22,15 @@ class TestProductFeedWriter(TestCase):
         writer = ProductFeedWriter(merchant_id='MERCH_X_123')
 
         product = create_product()
-        product.description = """Lyric sheeting by Peacock Alley is the epitome of simple and classic elegance. The flat sheets
-and pillowcases feature a double row of hemstitching. The fitted sheets fit mattresses up to 21 inches deep.
-The sheets are shown at left with tone on tone monogramming, please call for monogramming details and prices.
-Please note, gift wrapping and overnight shipping are not available for this style."""
+        product.description = """Lyric sheeting by Peacock Alley is the epitome
+of simple and classic elegance. The flat sheets and pillowcases feature a
+double row of hemstitching. The fitted sheets fit mattresses up to 21 inches
+deep.  The sheets are shown at left with tone on tone monogramming, please call
+for monogramming details and prices.  Please note, gift wrapping and overnight
+shipping are not available for this style."""
         AmazonProfile.objects.create(
             product=product,
-            release_date=UTC_NOW.replace(year=UTC_NOW.year+4)
+            release_date=UTC_NOW.replace(year=UTC_NOW.year + 4)
         )
         writer.add_product(product)
 

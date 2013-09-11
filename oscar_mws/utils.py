@@ -9,6 +9,8 @@ UPPERCASE_PATTERN = re.compile('([a-z0-9])([A-Z])')
 
 
 def load_class(name, default=None):
+    if not name:
+        return None
     try:
         module_label, class_name = name.rsplit('.', 1)
     except ValueError:

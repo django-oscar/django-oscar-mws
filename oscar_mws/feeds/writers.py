@@ -7,8 +7,8 @@ from lxml.builder import E, ElementMaker
 from django.conf import settings
 from django.db.models import get_model
 
-from .feed import mappers
-from .utils import load_class
+from ..feeds import mappers
+from ..utils import load_class
 
 logger = logging.getLogger('oscar_mws')
 

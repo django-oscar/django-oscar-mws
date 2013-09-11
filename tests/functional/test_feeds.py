@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.db.models import get_model
 from django.test.utils import override_settings
 
-from oscar_mws import feeds
+from oscar_mws.feeds import gateway
 from oscar_mws import abstract_models as am
 
 from oscar_mws.test import mixins
@@ -26,7 +26,7 @@ class TestSubmittingProductFeed(mixins.DataLoaderMixin, TestCase):
             )],
         )
 
-        submission = feeds.submit_product_feed([])
+        submission = gateway.submit_product_feed([])
 
         self.assertEquals(submission.submission_id, '2291326430')
         self.assertEquals(submission.processing_status, am.STATUS_SUBMITTED)
@@ -35,7 +35,7 @@ class TestSubmittingProductFeed(mixins.DataLoaderMixin, TestCase):
 class TestUpdatingSubmissionList(mixins.DataLoaderMixin, TestCase):
 
     def test_returns_empty_list_for_invalid_id(self):
-        submissions = feeds.update_feed_submissions(submission_id=(10 ** 12))
+        submissions = gateway.update_feed_submissions(submission_id=(10 ** 12))
         self.assertSequenceEqual(submissions, [])
 
     @httpretty.activate
@@ -48,7 +48,7 @@ class TestUpdatingSubmissionList(mixins.DataLoaderMixin, TestCase):
             body=xml_data,
         )
 
-        submissions = feeds.update_feed_submissions()
+        submissions = gateway.update_feed_submissions()
         self.assertEquals(len(submissions), 1)
 
         submission = submissions[0]
@@ -71,7 +71,7 @@ class TestProcessingSubmissionFeedResults(mixins.DataLoaderMixin, TestCase):
         )
 
         submission = factories.FeedSubmissionFactory(submission_id=7867070986)
-        report = feeds.process_submission_results(submission)[0]
+        report = gateway.process_submission_results(submission)[0]
         self.assertEquals(
             report.submission.submission_id,
             submission.submission_id

@@ -237,7 +237,7 @@ class AbstractAmazonProfile(models.Model):
         return self.product.product_class
 
     def get_standard_product_id(self):
-        if 7 < len(self.product.upc) < 16:
+        if self.product.upc and 7 < len(self.product.upc) < 16:
             return E.StandardProductID(
                 E.Type("UPC"),
                 E.Value(self.product.upc[:16]),
