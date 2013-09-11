@@ -34,22 +34,22 @@ class OscarMwsDashboardApplication(Application):
                 name='submission-list'
             ),
             url(
-                r'^submission/(?P<submission_id>[\w-])/$',
+                r'^submission/(?P<submission_id>[\w-]+)/$',
                 self.submission_detail_view.as_view(),
                 name='submission-detail'
             ),
             url(
-                r'^submission/update/(?P<submission_id>[\w-])/$',
+                r'^submission/update/(?P<submission_id>[\w-]+)/$',
                 self.submission_update_view.as_view(),
                 name='submission-update'
             ),
             url(
-                r'^fulfillment/create/(?P<order_number>[\w-])/$',
+                r'^fulfillment/create/(?P<order_number>[\w-]+)/$',
                 self.fulfillment_order_create_view.as_view(),
                 name='fulfillment-create'
             ),
             url(
-                r'^fulfillment/update/(?P<order_number>[\w-])/$',
+                r'^fulfillment/update/(?P<order_number>[\w-]+)/$',
                 self.fulfillment_order_update_view.as_view(),
                 name='fulfillment-update'
             ),
