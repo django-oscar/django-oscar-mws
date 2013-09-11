@@ -10,10 +10,10 @@ from boto.mws.exception import InvalidParameterValue
 
 from django import forms
 
-from .. import feeds
+from ..feeds import gateway
 from .forms import MwsProductFeedForm
-from ..fulfillment import (FulfillmentOrderCreator, update_fulfillment_orders,
-                           get_all_fulfillment_orders)
+from ..fulfillment.creator import FulfillmentOrderCreator
+from ..fulfillment.gateway import update_fulfillment_orders
 
 Order = get_model('order', 'Order')
 Product = get_model('catalogue', 'Product')
@@ -33,8 +33,8 @@ class ProductListView(FormMixin, generic.ListView):
             # When pagination is enabled and object_list is a queryset,
             # it's better to do a cheap query than to load the unpaginated
             # queryset in memory.
-            if (self.get_paginate_by(self.object_list) is not None
-                and hasattr(self.object_list, 'exists')):
+            if self.get_paginate_by(self.object_list) is not None \
+               and hasattr(self.object_list, 'exists'):
                 is_empty = not self.object_list.exists()
             else:
                 is_empty = len(self.object_list) == 0
@@ -60,12 +60,12 @@ class ProductListView(FormMixin, generic.ListView):
 
     def handle_submit_product_feed(self):
         try:
-            submission = feeds.submit_product_feed(
+            submission = gateway.submit_product_feed(
                 Product.objects.filter(
                     Q(amazon_profile=None) | Q(amazon_profile__asin=u'')
                 ),
             )
-        except feeds.MwsFeedError:
+        except gateway.MwsFeedError:
             messages.info(self.request, "Submitting feed failed")
         else:
             messages.info(
@@ -82,10 +82,10 @@ class ProductListView(FormMixin, generic.ListView):
 
     def handle_switch_to_afn(self):
         try:
-            submission = feeds.switch_product_fulfillment(
+            submission = gateway.switch_product_fulfillment(
                 Product.objects.all(),
             )
-        except feeds.MwsFeedError:
+        except gateway.MwsFeedError:
             messages.info(self.request, "Submitting feed failed")
         else:
             messages.info(
@@ -97,7 +97,7 @@ class ProductListView(FormMixin, generic.ListView):
 
     def handle_update_product_identifiers(self):
         try:
-            feeds.update_product_identifiers(Product.objects.all())
+            gateway.update_product_identifiers(Product.objects.all())
         except InvalidParameterValue as exc:
             messages.error(
                 self.request,
@@ -162,8 +162,8 @@ class SubmissionUpdateView(generic.RedirectView):
     def get_redirect_url(self, **kwargs):
         submission_id = self.kwargs.get('submission_id')
         try:
-            feeds.update_feed_submission(submission_id)
-        except feeds.MwsFeedError:
+            gateway.update_feed_submission(submission_id)
+        except gateway.MwsFeedError:
             messages.error(self.request, "Updating submission status failed")
             return self.redirect_url
         else:
@@ -179,7 +179,7 @@ class SubmissionUpdateView(generic.RedirectView):
             return self.redirect_url
 
         if submission.processing_status == '_DONE_':
-            feeds.process_submission_results(submission)
+            gateway.process_submission_results(submission)
 
         return self.redirect_url
 
@@ -248,3 +248,19 @@ class FulfillmentOrderUpdateView(generic.RedirectView):
             'dashboard:order-detail',
             kwargs={'number': order_number}
         )
+
+
+class FulfillmentOrderDetailView(generic.DetailView):
+    model = FulfillmentOrder
+    pk_url_kwarg = 'fulfillment_id'
+    context_object_name = 'fulfillment_order'
+    template_name = 'oscar_mws/dashboard/fulfillment_detail.html'
+
+    def get_object(self):
+        filters = {
+            self.pk_url_kwarg: self.kwargs.get(self.pk_url_kwarg)
+        }
+        instance = self.model.objects.filter(**filters)[:1]
+        if not instance:
+            raise Http404
+        return instance[0]

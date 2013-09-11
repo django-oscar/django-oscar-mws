@@ -18,6 +18,8 @@ class OscarMwsDashboardApplication(Application):
     fulfillment_order_create_view = views.FulfillmentOrderCreateView
     fulfillment_order_update_view = views.FulfillmentOrderUpdateView
 
+    fulfillment_order_detail_view = views.FulfillmentOrderDetailView
+
     def get_urls(self):
         urlpatterns = patterns(
             '',
@@ -32,24 +34,29 @@ class OscarMwsDashboardApplication(Application):
                 name='submission-list'
             ),
             url(
-                r'^submission/(?P<submission_id>\d+)/$',
+                r'^submission/(?P<submission_id>[\w-])/$',
                 self.submission_detail_view.as_view(),
                 name='submission-detail'
             ),
             url(
-                r'^submission/update/(?P<submission_id>\d+)/$',
+                r'^submission/update/(?P<submission_id>[\w-])/$',
                 self.submission_update_view.as_view(),
                 name='submission-update'
             ),
             url(
-                r'^fulfillment/create/(?P<order_number>\d+)/$',
+                r'^fulfillment/create/(?P<order_number>[\w-])/$',
                 self.fulfillment_order_create_view.as_view(),
                 name='fulfillment-create'
             ),
             url(
-                r'^fulfillment/update/(?P<order_number>\d+)/$',
+                r'^fulfillment/update/(?P<order_number>[\w-])/$',
                 self.fulfillment_order_update_view.as_view(),
                 name='fulfillment-update'
+            ),
+            url(
+                r'^fulfillment/(?P<fulfillment_id>[\w-]+)/$',
+                self.fulfillment_order_detail_view.as_view(),
+                name='fulfillment-detail'
             ),
         )
         return self.post_process_urls(urlpatterns)

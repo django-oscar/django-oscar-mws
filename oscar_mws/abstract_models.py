@@ -316,32 +316,6 @@ class AbstractFulfillmentOrder(models.Model):
         abstract = True
 
 
-class AbstractFulfillmentOrderLine(models.Model):
-    line = models.ForeignKey(
-        'order.Line',
-        verbose_name=_("Line"),
-        related_name="fulfillment_lines",
-    )
-    fulfillment_order = models.ForeignKey(
-        'oscar_mws.FulfillmentOrder',
-        verbose_name=_("Fulfillment order"),
-        related_name="fulfillment_lines",
-    )
-    order_item_id = models.CharField(
-        _("Seller fulfillment order item ID"),
-        max_length=50,
-    )
-
-    def __unicode__(self):
-        return "Line {0} on {1}".format(
-            self.line.partner_sku,
-            self.fulfillment_order.fulfillment_id
-        )
-
-    class Meta:
-        abstract = True
-
-
 class AbstractFulfillmentShipment(models.Model):
     shipment_id = models.CharField(_("Amazon shipment ID"), max_length=64)
     fulfillment_center_id = models.CharField(
@@ -373,6 +347,7 @@ class AbstractFulfillmentShipment(models.Model):
 
 
 class AbstractShipmentPackage(models.Model):
+    package_number = models.IntegerField(_("Package number"))
     tracking_number = models.CharField(_("Tracking number"), max_length=255)
     carrier_code = models.CharField(_("Carrier code"), max_length=255)
 
@@ -386,6 +361,51 @@ class AbstractShipmentPackage(models.Model):
         return "Package {0} delivered by {1}".format(
             self.tracking_number,
             self.carrier_code
+        )
+
+    class Meta:
+        abstract = True
+
+
+class AbstractFulfillmentOrderLine(models.Model):
+    line = models.OneToOneField(
+        'order.Line',
+        verbose_name=_("Line"),
+        related_name="fulfillment_line",
+    )
+    fulfillment_order = models.ForeignKey(
+        'oscar_mws.FulfillmentOrder',
+        verbose_name=_("Fulfillment order"),
+        related_name="fulfillment_lines",
+    )
+    order_item_id = models.CharField(
+        _("Seller fulfillment order item ID"),
+        max_length=50,
+    )
+
+    shipment = models.ForeignKey(
+        'oscar_mws.FulfillmentShipment',
+        verbose_name=_("Fulfillment shipment"),
+        related_name="order_lines",
+        null=True, blank=True,
+    )
+    package = models.ForeignKey(
+        'oscar_mws.ShipmentPackage',
+        verbose_name=_("Fulfillment shipment package"),
+        related_name="order_lines",
+        null=True, blank=True,
+    )
+
+    @property
+    def status(self):
+        if self.shipment:
+            return self.shipment.status
+        return self.fulfillment_order.status
+
+    def __unicode__(self):
+        return "Line {0} on {1}".format(
+            self.line.partner_sku,
+            self.fulfillment_order.fulfillment_id
         )
 
     class Meta:

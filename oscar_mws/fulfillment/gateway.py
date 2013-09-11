@@ -2,6 +2,8 @@ import logging
 
 from dateutil import parser as du_parser
 
+from boto.mws.exception import ResponseError
+
 from django.db.models import get_model
 
 from ..connection import get_connection
@@ -18,9 +20,16 @@ FulfillmentShipment = get_model('oscar_mws', 'FulfillmentShipment')
 
 
 def update_fulfillment_order(fulfillment_order):
-    response = get_connection().get_fulfillment_order(
-        SellerFulfillmentOrderId=fulfillment_order.fulfillment_id,
-    )
+    try:
+        response = get_connection().get_fulfillment_order(
+            SellerFulfillmentOrderId=fulfillment_order.fulfillment_id,
+        )
+    except ResponseError as exc:
+        logger.error(
+            "[{exc.error_code}]: {exc.reason} : {exc.message} (Request ID: "
+            "{exc.request_id})".format(exc=exc)
+        )
+        return
 
     forder = response.GetFulfillmentOrderResult.FulfillmentOrder
     assert forder.SellerFulfillmentOrderId == fulfillment_order.fulfillment_id
@@ -31,8 +40,6 @@ def update_fulfillment_order(fulfillment_order):
 
     fulfillment_order.status = forder.FulfillmentOrderStatus
     fulfillment_order.save()
-
-    print [f for f in response.GetFulfillmentOrderResult.FulfillmentShipment]
 
     fshipments = getattr(
         response.GetFulfillmentOrderResult.FulfillmentShipment,
@@ -79,18 +86,12 @@ def update_fulfillment_order(fulfillment_order):
             event_type=event_type,
 
         )
-        items = getattr(fshipment.FulfillmentShipmentItem, 'member', [])
-        if items:
-            item_ids = [i.SellerSKU for i in items]
-            fulfillment_lines = Line.objects.filter(
-                fulfillment_lines__order_item_id__in=item_ids
-            )
-            [shipping_event.lines.add(l) for l in fulfillment_lines]
 
         shipping_note = []
         packages = getattr(fshipment.FulfillmentShipmentPackage, 'member', [])
         for fpackage in packages:
             ShipmentPackage.objects.get_or_create(
+                package_number=fpackage.PackageNumber,
                 tracking_number=fpackage.TrackingNumber,
                 carrier_code=fpackage.CarrierCode,
                 fulfillment_shipment=shipment,
@@ -104,13 +105,35 @@ def update_fulfillment_order(fulfillment_order):
         if shipping_note:
             shipping_event.notes = "\n".join(shipping_note)
             shipping_event.save()
+
+        for item in getattr(fshipment.FulfillmentShipmentItem, 'member', []):
+            fulfillment_lines = Line.objects.filter(
+                fulfillment_line__order_item_id=item.SellerSKU
+            )
+            for fline in fulfillment_lines:
+                shipping_event.lines.add(fline)
+                fline.shipment = shipment
+                try:
+                    fline.package = shipment.packages.get(
+                        package_number=item.PackageNumber
+                    )
+                except ShipmentPackage.DoesNotExist:
+                    pass
+                fline.save()
+
     return fulfillment_order
 
 
 def update_fulfillment_orders(fulfillment_orders):
     processed_orders = []
     for order in fulfillment_orders:
-        processed_orders.append(update_fulfillment_order(order))
+        try:
+            processed_orders.append(update_fulfillment_order(order))
+        except ResponseError as exc:
+            logger.error(
+                "[{exc.error_code}]: {exc.reason} : {exc.message} "
+                "(Request ID: {exc.request_id})".format(exc=exc)
+            )
     return processed_orders
 
 
@@ -119,8 +142,14 @@ def get_all_fulfillment_orders(query_datetime=None):
     if query_datetime:
         kwargs['QueryStartDateTime'] = query_datetime.isoformat()
 
-    response = get_connection().list_all_fulfillment_orders(**kwargs)
-    print response
+    try:
+        response = get_connection().list_all_fulfillment_orders(**kwargs)
+    except ResponseError as exc:
+        logger.error(
+            "[{exc.error_code}]: {exc.reason} : {exc.message} "
+            "(Request ID: {exc.request_id})".format(exc=exc)
+        )
+        return []
 
     processed_orders = []
     for forder in response.ListAllFulfillmentOrdersResult.FulfillmentOrders:

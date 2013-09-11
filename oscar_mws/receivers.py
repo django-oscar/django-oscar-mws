@@ -2,7 +2,7 @@ import logging
 
 from django.utils.translation import ugettext_lazy as _
 
-from oscar_mws.fulfillment import FulfillmentOrderCreator
+from oscar_mws.fulfillment.creator import FulfillmentOrderCreator
 
 logger = logging.getLogger('oscar_mws')
 

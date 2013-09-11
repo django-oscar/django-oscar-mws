@@ -1,0 +1,55 @@
+{% load i18n %}
+{% load url from future %}
+<div class="tab-pane {% if active_tab == 'mws-fulfillment' %}active{% endif %}" id="mws-fulfillment">
+    <div class="well">
+        <form id="submit-fulfillment-order" method="post"
+              action="{% url "mws-dashboard:fulfillment-create" order_number=order.number %}">
+            {% csrf_token %}
+            <button class="btn btn-primary" type="submit">
+                {% trans "Request fulfillment by Amazon" %}
+            </button>
+            <a class="btn btn-primary" href="{% url "mws-dashboard:fulfillment-update" order_number=order.number %}">
+                {% trans "Update fulfillment orders" %}
+           </a>
+        </form>
+   </div>
+
+    <div class="table-header">
+        <h3>{% trans "MWS Fulfillment Orders" %}</h3>
+    </div>
+    <table class="table table-striped table-bordered table-hover">
+        <thead>
+            <tr>
+                <th>{% trans "Fulfillment Order ID" %}</th>
+                <th>{% trans "Order Items ID" %}</th>
+                <th>{% trans "Product" %}</th>
+                <th>{% trans "Status" %}</th>
+                <th>{% trans "Last updated" %}</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                {% for fulfillment_order in order.fulfillment_orders.all %}
+                    <td>
+                        <a href="{% url "mws-dashboard:fulfillment-detail" pk=fulfillment_order.fulfillment_id %}">
+                            {{ fulfillment_order.fulfillment_id }}
+                        </a>
+                    </td>
+                    <td>
+                        {% for fulfillment_line in fulfillment_order.fulfillment_lines.all %}
+                            {{ fulfillment_line.order_item_id }}<br />
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for fulfillment_line in fulfillment_order.fulfillment_lines.all %}
+                            {{ fulfillment_line.line.product }}<br />
+                        {% endfor %}
+                    </td>
+                <td>{{ fulfillment_order.status|default:"-" }}</td>
+                <td>{{ fulfillment_order.date_updated|date:"jS M Y H:i" }}</td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
+</div>
