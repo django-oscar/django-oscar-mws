@@ -32,7 +32,7 @@
             <tr>
                 {% for fulfillment_order in order.fulfillment_orders.all %}
                     <td>
-                        <a href="{% url "mws-dashboard:fulfillment-detail" pk=fulfillment_order.fulfillment_id %}">
+                        <a href="{% url "mws-dashboard:fulfillment-detail" fulfillment_id=fulfillment_order.fulfillment_id %}">
                             {{ fulfillment_order.fulfillment_id }}
                         </a>
                     </td>
