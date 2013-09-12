@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db.models import get_model
 from django.core.management.base import NoArgsCommand
 
-from oscar_mws.feeds import submit_product_feed
+from oscar_mws.feeds.gateway import submit_product_feed
 
 Product = get_model('catalogue', 'Product')
 

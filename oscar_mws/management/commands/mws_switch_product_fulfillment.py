@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db.models import get_model
 from django.core.management.base import NoArgsCommand, CommandError
 
-from oscar_mws.feeds import switch_product_fulfillment
+from oscar_mws.feeds.gateway import switch_product_fulfillment
 
 Product = get_model('catalogue', 'Product')
 AmazonProfile = get_model('oscar_mws', 'AmazonProfile')

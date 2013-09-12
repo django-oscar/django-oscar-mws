@@ -3,9 +3,9 @@ from optparse import make_option
 from django.conf import settings
 from django.db.models import get_model
 from django.utils.translation import ugettext_lazy as _
-from django.core.management.base import NoArgsCommand, CommandError
+from django.core.management.base import NoArgsCommand
 
-from oscar_mws import feeds
+from oscar_mws.feeds import gateway
 
 Product = get_model('catalogue', 'Product')
 
@@ -26,7 +26,7 @@ class Command(NoArgsCommand):
             products = Product.objects.filter(
                 amazon_profile__asin=''
             )
-            feeds.update_product_identifiers(
+            gateway.update_product_identifiers(
                 products,
                 marketplace_id=settings.MWS_MARKETPLACE_ID
             )

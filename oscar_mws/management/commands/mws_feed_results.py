@@ -3,7 +3,7 @@ from optparse import make_option
 from django.db.models import get_model
 from django.core.management.base import NoArgsCommand, CommandError
 
-from oscar_mws import feeds
+from oscar_mws.feeds import gateway
 
 Product = get_model('catalogue', 'Product')
 FeedSubmission = get_model('oscar_mws', 'FeedSubmission')
@@ -27,7 +27,7 @@ class Command(NoArgsCommand):
 
     def handle_noargs(self, **options):
         if options.get('list_feeds'):
-            for feed in feeds.list_submitted_feeds():
+            for feed in gateway.list_submitted_feeds():
                 print "{0}\t\t{1}\t\t{2}".format(
                     feed['submission_id'],
                     feed['feed_type'],
@@ -37,7 +37,7 @@ class Command(NoArgsCommand):
 
         submission_id = options.get('submission_id')
         if submission_id:
-            submission = feeds.update_feed_submission(submission_id)
+            submission = gateway.update_feed_submission(submission_id)
 
             try:
                 submission = FeedSubmission.objects.get(
