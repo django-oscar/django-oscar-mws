@@ -14,11 +14,14 @@ ProductAttributeValue = get_model('catalogue', 'ProductAttributeValue')
 class BaseProductDataMapper(object):
     product_type = None
 
-    def get_product_data(self, product, **kwargs):
+    def __init__(self, product):
+        self.product = product
+
+    def get_product_data(self, **kwargs):
         pt_elem = getattr(E, self.product_type)()
 
         attr_values = ProductAttributeValue.objects.filter(
-            product=product,
+            product=self.product,
             attribute__code__in=self.ATTRIBUTE_MAPPING.keys()
         ).select_related('attribute')
 
@@ -32,6 +35,9 @@ class BaseProductDataMapper(object):
 
 
 class BaseProductMapper(object):
+
+    def __init__(self, product):
+        self.product = product
 
     def convert_camel_case(self, name):
         s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
@@ -56,14 +62,14 @@ class BaseProductMapper(object):
         #    )
         return value
 
-    def get_value_element(self, product, attr_name):
+    def get_value_element(self, attr_name):
         pyattr = self.convert_camel_case(attr_name)
 
-        attr_value = self._get_value_from(product.amazon_profile, pyattr)
+        attr_value = self._get_value_from(self, pyattr)
         if not attr_value:
-            attr_value = self._get_value_from(product, pyattr)
+            attr_value = self._get_value_from(self.product.amazon_profile, pyattr)
         if not attr_value:
-            attr_value = self._get_value_from(self, pyattr)
+            attr_value = self._get_value_from(self.product, pyattr)
 
         # if we still have no value we assume it is optional and
         # we just leave it out of the generated XML.
@@ -131,18 +137,18 @@ class ProductMapper(BaseProductMapper):
         "MaxAggregateShipQuantity",
     ]
 
-    def _add_attributes(self, product, elem, attr_names):
+    def _add_attributes(self, elem, attr_names):
         try:
-            product.amazon_profile
+            self.product.amazon_profile
         except AmazonProfile.DoesNotExist:
             # Assign to the product to make sure it is accessible without
             # having to look it up on the product again
-            product.amazon_profile = AmazonProfile.objects.create(
-                product=product
+            self.product.amazon_profile = AmazonProfile.objects.create(
+                product=self.product
             )
 
         for attr in attr_names:
-            attr_elem = self.get_value_element(product, attr)
+            attr_elem = self.get_value_element(attr)
 
             if attr_elem is not None:
                 elem.append(attr_elem)
@@ -158,20 +164,19 @@ class ProductMapper(BaseProductMapper):
             return value.isoformat()
         return unicode(value)
 
-    def get_product_xml(self, product):
+    def get_product_xml(self):
         product_elem = E.Product()
-        self._add_attributes(product, product_elem, self.BASE_ATTRIBUTES)
+        self._add_attributes(product_elem, self.BASE_ATTRIBUTES)
 
         desc_elem = etree.SubElement(product_elem, 'DescriptionData')
         self._add_attributes(
-            product,
             desc_elem,
             self.DESCRIPTION_DATA_ATTRIBUTES
         )
 
-        mapper = self.PRODUCT_DATA_MAPPERS.get(product.product_class.slug)
+        mapper = self.PRODUCT_DATA_MAPPERS.get(self.product.product_class.slug)
         if mapper:
-            sub_tree = mapper().get_product_data(product)
+            sub_tree = mapper(self.product).get_product_data()
             if sub_tree is not None:
                 pd_elem = E.ProductData()
                 pd_elem.append(sub_tree)

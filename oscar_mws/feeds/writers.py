@@ -90,7 +90,7 @@ class ProductFeedWriter(BaseFeedWriter):
         msg_elem = E.Message(
             E.MessageID(unicode(msg_id)),
             E.OperationType(operation_type),
-            self.mapper_class().get_product_xml(product)
+            self.mapper_class(product).get_product_xml()
         )
         self.messages[msg_id] = product
         self.root.append(msg_elem)
@@ -126,7 +126,7 @@ class InventoryFeedWriter(BaseFeedWriter):
         msg_id = self.msg_counter.next()
 
         inventory = E.Inventory(
-            self.mapper_class().get_value_element(product, 'SKU'),
+            self.mapper_class(product).get_value_element('SKU'),
         )
         if fulfillment_center_id:
             inventory.append(E.FulfillmentCenterID(fulfillment_center_id))
