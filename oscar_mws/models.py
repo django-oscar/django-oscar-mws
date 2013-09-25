@@ -31,3 +31,11 @@ class FulfillmentShipment(am.AbstractFulfillmentShipment):
 
 class ShipmentPackage(am.AbstractShipmentPackage):
     pass
+
+
+class MerchantAccount(am.AbstractMerchantAccount):
+    pass
+
+
+class AmazonMarketplace(am.AbstractAmazonMarketplace):
+    pass

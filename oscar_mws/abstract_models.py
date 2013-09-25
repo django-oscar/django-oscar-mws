@@ -1,3 +1,5 @@
+import oscar_mws
+
 from django.db import models
 from django.conf import settings
 from django.utils.timezone import now as tz_now
@@ -233,6 +235,12 @@ class AbstractAmazonProfile(models.Model):
         default=FULFILLMENT_BY_MERCHANT,
     )
 
+    marketplaces = models.ManyToManyField(
+        'AmazonMarketplace',
+        verbose_name=_("Marketplaces"),
+        related_name="amazon_profiles",
+    )
+
     def get_item_type(self):
         return self.product.product_class
 
@@ -407,6 +415,64 @@ class AbstractFulfillmentOrderLine(models.Model):
             self.line.partner_sku,
             self.fulfillment_order.fulfillment_id
         )
+
+    class Meta:
+        abstract = True
+
+
+class AbstractMerchantAccount(models.Model):
+    name = models.CharField(_("Name"), max_length=200)
+    aws_api_key = models.CharField(_("AWS API Key"), max_length=200)
+    aws_api_secret = models.CharField(_("AWS API Secret"), max_length=200)
+    seller_id = models.CharField(_("Seller/Merchant ID"), max_length=200)
+
+    def __unicode__(self):
+        return "Merchant {0}".format(self.name)
+
+    class Meta:
+        abstract = True
+        unique_together = (('aws_api_key', 'aws_api_secret', 'seller_id'),)
+
+
+class AbstractAmazonMarketplace(models.Model):
+    MARKETPLACE_CHOICES = (
+        (oscar_mws.MWS_MARKETPLACE_US, _("United States")),
+        (oscar_mws.MWS_MARKETPLACE_CA, _("Canada")),
+        (oscar_mws.MWS_MARKETPLACE_DE, _("Germany")),
+        (oscar_mws.MWS_MARKETPLACE_ES, _("Spain")),
+        (oscar_mws.MWS_MARKETPLACE_FR, _("France")),
+        (oscar_mws.MWS_MARKETPLACE_IN, _("India")),
+        (oscar_mws.MWS_MARKETPLACE_IT, _("Italy")),
+        (oscar_mws.MWS_MARKETPLACE_UK, _("United Kingdom")),
+        (oscar_mws.MWS_MARKETPLACE_JP, _("Japan")),
+        (oscar_mws.MWS_MARKETPLACE_CN, _("China")),
+    )
+
+    name = models.CharField(_("Name"), max_length=200)
+    merchant = models.ForeignKey(
+        "MerchantAccount",
+        verbose_name=_("Merchant account"),
+        related_name="marketplaces",
+    )
+    marketplace = models.CharField(
+        _("Amazon Marketplace"),
+        max_length=2,
+        choices=MARKETPLACE_CHOICES
+    )
+    marketplace_id = models.CharField(
+        _("Seller marketplace ID"),
+        max_length=16,
+        unique=True
+    )
+    domain = models.CharField(_("Domain"), max_length=200, blank=True)
+    currency_code = models.CharField(
+        _("Currency code"),
+        max_length=3,
+        blank=True
+    )
+
+    def __unicode__(self):
+        return "{0} ({1})".format(self.name, self.marketplace_id)
 
     class Meta:
         abstract = True
