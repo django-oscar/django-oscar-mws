@@ -20,6 +20,10 @@ MWS_DASHBOARD_NAVIGATION = [
                 'url_name': 'mws-dashboard:product-list',
             },
             {
+                'label': _('Merchants & Marketplaces'),
+                'url_name': 'mws-dashboard:marketplace-list',
+            },
+            {
                 'label': _('Feed submissions'),
                 'url_name': 'mws-dashboard:submission-list',
             },

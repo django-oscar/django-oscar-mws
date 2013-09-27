@@ -1,43 +1,48 @@
-import os
+import logging
 
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
+from django.db.models import get_model
 
 from boto.mws.connection import MWSConnection
 
+logger = logging.getLogger('oscar_mws')
 
-_mws_connection = None
+MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
 
 
-def get_connection(aws_access_key_id=None, aws_secret_access_key=None,
+_mws_connections = {}
+
+
+def get_connection(merchant_id, aws_access_key_id, aws_secret_access_key,
                    **kwargs):
-    global _mws_connection
-    if not aws_access_key_id:
-        aws_access_key_id = getattr(
-            settings,
-            'MWS_AWS_ACCESS_KEY_ID',
-            os.environ.get('MWS_AWS_ACCESS_KEY_ID')
-        )
-    if not aws_secret_access_key:
-        aws_secret_access_key = getattr(
-            settings,
-            'MWS_AWS_SECRET_ACCESS_KEY',
-            os.environ.get('MWS_AWS_SECRET_ACCESS_KEY')
-        )
+    global _mws_connections
+
+    _mws_connections[merchant_id] = MWSConnection(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        SellerId=merchant_id,
+        **kwargs
+    )
+    return _mws_connections[merchant_id]
+
+
+def get_merchant_connection(merchant_id):
+    global _mws_connections
+
+    print merchant_id, _mws_connections
+
+    if merchant_id in _mws_connections:
+        return _mws_connections[merchant_id]
 
     try:
-        merchant_id = settings.MWS_SELLER_ID
-    except AttributeError:
-        raise ImproperlyConfigured(
-            "a merchant/seller ID is required to use Amazon MWS. "
-            "Please set 'MWS_SELLER_ID' in your settings."
+        merchant = MerchantAccount.objects.get(seller_id=merchant_id)
+    except MerchantAccount.DoesNotExist:
+        logger.error(
+            "Could not find merchant with ID {0}".format(merchant_id)
         )
+        return
 
-    if not _mws_connection:
-        _mws_connection = MWSConnection(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            Merchant=merchant_id,
-            **kwargs
-        )
-    return _mws_connection
+    return get_connection(
+        merchant_id,
+        aws_access_key_id=merchant.aws_api_key,
+        aws_secret_access_key=merchant.aws_api_secret,
+    )

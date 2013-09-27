@@ -6,7 +6,7 @@ from boto.mws.exception import ResponseError
 
 from django.db.models import get_model
 
-from ..connection import get_connection
+from ..connection import get_merchant_connection
 
 logger = logging.getLogger('oscar_mws')
 
@@ -20,8 +20,11 @@ FulfillmentShipment = get_model('oscar_mws', 'FulfillmentShipment')
 
 
 def update_fulfillment_order(fulfillment_order):
+    mws_connection = get_merchant_connection(
+        fulfillment_order.merchant.seller_id
+    )
     try:
-        response = get_connection().get_fulfillment_order(
+        response = mws_connection.get_fulfillment_order(
             SellerFulfillmentOrderId=fulfillment_order.fulfillment_id,
         )
     except ResponseError as exc:
@@ -137,13 +140,15 @@ def update_fulfillment_orders(fulfillment_orders):
     return processed_orders
 
 
-def get_all_fulfillment_orders(query_datetime=None):
+def get_all_fulfillment_orders(merchant, query_datetime=None):
     kwargs = {}
     if query_datetime:
         kwargs['QueryStartDateTime'] = query_datetime.isoformat()
 
     try:
-        response = get_connection().list_all_fulfillment_orders(**kwargs)
+        response = get_merchant_connection(
+            merchant.seller_id
+        ).list_all_fulfillment_orders(**kwargs)
     except ResponseError as exc:
         logger.error(
             "[{exc.error_code}]: {exc.reason} : {exc.message} "

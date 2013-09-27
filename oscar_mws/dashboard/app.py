@@ -11,13 +11,17 @@ class OscarMwsDashboardApplication(Application):
 
     product_list_view = views.ProductListView
 
+    merchant_list_view = views.MerchantListView
+    merchant_create_view = views.MerchantCreateView
+    merchant_update_view = views.MerchantUpdateView
+    marketplace_update_view = views.MarketplaceUpdateView
+
     submission_list_view = views.SubmissionListView
     submission_detail_view = views.SubmissionDetailView
     submission_update_view = views.SubmissionUpdateView
 
     fulfillment_order_create_view = views.FulfillmentOrderCreateView
     fulfillment_order_update_view = views.FulfillmentOrderUpdateView
-
     fulfillment_order_detail_view = views.FulfillmentOrderDetailView
 
     def get_urls(self):
@@ -27,6 +31,26 @@ class OscarMwsDashboardApplication(Application):
                 r'^products/$',
                 self.product_list_view.as_view(),
                 name='product-list'
+            ),
+            url(
+                r'^merchants/$',
+                self.merchant_list_view.as_view(),
+                name='merchant-list',
+            ),
+            url(
+                r'^merchant/create/$',
+                self.merchant_create_view.as_view(),
+                name='merchant-create',
+            ),
+            url(
+                r'^merchant/update/(?P<pk>\d+)/$',
+                self.merchant_update_view.as_view(),
+                name='merchant-update',
+            ),
+            url(
+                r'^merchant/(?P<seller_id>[\w]+)/marketplace/update/$',
+                self.marketplace_update_view.as_view(),
+                name='marketplace-update',
             ),
             url(
                 r'^submissions/$',

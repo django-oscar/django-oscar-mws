@@ -1,0 +1,27 @@
+﻿{% load i18n %}
+{% load url from future %}
+
+<td {% if marketplace_list|length > 1 %}rowspan="{{ marketplace_list|length }}"{% endif %}>
+    <div class="btn-toolbar">
+        <div class="btn-group">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                {% trans "Actions" %}
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu pull-right">
+                <li>
+                    <a href="{% url "mws-dashboard:merchant-update" merchant.id %}">
+                        <i class="icon-edit"></i>
+                        {% trans "Update merchant" %}
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url "mws-dashboard:marketplace-update" seller_id=merchant.seller_id %}">
+                        <i class="icon-refresh"></i>
+                        {% trans "Update marketplaces" %}
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</td>

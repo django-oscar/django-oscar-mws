@@ -119,6 +119,11 @@ class AbstractFeedSubmission(models.Model):
         choices=PROCESSING_STATUSES
     )
 
+    merchant = models.ForeignKey(
+        "MerchantAccount",
+        verbose_name=_("Merchant account"),
+        related_name="feed_submissions"
+    )
     submitted_products = models.ManyToManyField(
         'catalogue.Product',
         verbose_name=_("Submitted products"),
@@ -293,6 +298,11 @@ class AbstractFulfillmentOrder(models.Model):
         max_length=32,
         unique=True,
     )
+    merchant = models.ForeignKey(
+        "MerchantAccount",
+        verbose_name=_("Merchant account"),
+        related_name="fulfillment_orders"
+    )
     order = models.ForeignKey(
         'order.Order',
         verbose_name=_("Order"),
@@ -426,6 +436,10 @@ class AbstractMerchantAccount(models.Model):
     aws_api_secret = models.CharField(_("AWS API Secret"), max_length=200)
     seller_id = models.CharField(_("Seller/Merchant ID"), max_length=200)
 
+    @property
+    def marketplace_ids(self):
+        return [m.marketplace_id for m in self.marketplaces.all()]
+
     def __unicode__(self):
         return "Merchant {0}".format(self.name)
 
@@ -436,16 +450,16 @@ class AbstractMerchantAccount(models.Model):
 
 class AbstractAmazonMarketplace(models.Model):
     MARKETPLACE_CHOICES = (
-        (oscar_mws.MWS_MARKETPLACE_US, _("United States")),
-        (oscar_mws.MWS_MARKETPLACE_CA, _("Canada")),
+        (oscar_mws.MWS_MARKETPLACE_US, _("United States (NA)")),
+        (oscar_mws.MWS_MARKETPLACE_CA, _("Canada (NA)")),
         (oscar_mws.MWS_MARKETPLACE_DE, _("Germany")),
-        (oscar_mws.MWS_MARKETPLACE_ES, _("Spain")),
-        (oscar_mws.MWS_MARKETPLACE_FR, _("France")),
-        (oscar_mws.MWS_MARKETPLACE_IN, _("India")),
-        (oscar_mws.MWS_MARKETPLACE_IT, _("Italy")),
-        (oscar_mws.MWS_MARKETPLACE_UK, _("United Kingdom")),
-        (oscar_mws.MWS_MARKETPLACE_JP, _("Japan")),
-        (oscar_mws.MWS_MARKETPLACE_CN, _("China")),
+        (oscar_mws.MWS_MARKETPLACE_ES, _("Spain (EU)")),
+        (oscar_mws.MWS_MARKETPLACE_FR, _("France (EU)")),
+        (oscar_mws.MWS_MARKETPLACE_IN, _("India (EU)")),
+        (oscar_mws.MWS_MARKETPLACE_IT, _("Italy (EU)")),
+        (oscar_mws.MWS_MARKETPLACE_UK, _("United Kingdom (EU)")),
+        (oscar_mws.MWS_MARKETPLACE_JP, _("Japan (JP)")),
+        (oscar_mws.MWS_MARKETPLACE_CN, _("China (CN)")),
     )
 
     name = models.CharField(_("Name"), max_length=200)
@@ -454,8 +468,8 @@ class AbstractAmazonMarketplace(models.Model):
         verbose_name=_("Merchant account"),
         related_name="marketplaces",
     )
-    marketplace = models.CharField(
-        _("Amazon Marketplace"),
+    region = models.CharField(
+        _("Marketplace region"),
         max_length=2,
         choices=MARKETPLACE_CHOICES
     )
@@ -472,7 +486,7 @@ class AbstractAmazonMarketplace(models.Model):
     )
 
     def __unicode__(self):
-        return "{0} ({1})".format(self.name, self.marketplace_id)
+        return "{0} ({1})".format(self.name, self.region)
 
     class Meta:
         abstract = True

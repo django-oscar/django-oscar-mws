@@ -6,7 +6,7 @@ from boto.mws.exception import ResponseError
 
 from .adapters import OrderAdapter
 from ..utils import load_class
-from ..connection import get_connection
+from ..connection import get_merchant_connection
 
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 FulfillmentOrderLine = get_model('oscar_mws', 'FulfillmentOrderLine')
@@ -15,20 +15,20 @@ FulfillmentOrderLine = get_model('oscar_mws', 'FulfillmentOrderLine')
 class FulfillmentOrderCreator(object):
     order_adapter_class = OrderAdapter
 
-    def __init__(self, merchant_id=None, order_adapter_class=None):
+    def __init__(self, merchant, order_adapter_class=None):
         custom_adapter = getattr(settings, 'MWS_ORDER_ADAPTER', None)
         if custom_adapter:
             self.order_adapter_class = load_class(custom_adapter)
 
-        self.merchant_id = merchant_id or getattr(settings, 'MWS_SELLER_ID')
-        self.mws_connection = get_connection()
+        self.merchant = merchant
+        self.mws_connection = get_merchant_connection(merchant.seller_id)
 
         self.errors = {}
 
     def get_order_adapter(self, order):
         return self.order_adapter_class(
             order=order,
-            merchant_id=self.merchant_id,
+            merchant_id=self.merchant.seller_id,
         )
 
     def create_fulfillment_order(self, order, lines=None, **kwargs):
@@ -41,11 +41,11 @@ class FulfillmentOrderCreator(object):
                 fulfillment_order = FulfillmentOrder.objects.get(
                     fulfillment_id=fulfillment_id,
                     order=order,
+                    merchant=self.merchant,
                 )
             except FulfillmentOrder.DoesNotExist:
                 fulfillment_order = FulfillmentOrder(
                     fulfillment_id=fulfillment_id,
-                    order=order,
                 )
                 try:
                     self.mws_connection.create_fulfillment_order(
@@ -56,6 +56,7 @@ class FulfillmentOrderCreator(object):
                     continue
 
                 fulfillment_order.order = order
+                fulfillment_order.merchant = self.merchant
                 fulfillment_order.save()
             else:
                 self.errors[fulfillment_id] = _("Order already submitted.")

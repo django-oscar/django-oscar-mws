@@ -8,52 +8,23 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        # Adding model 'MerchantAccount'
-        db.create_table('oscar_mws_merchantaccount', (
-            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('name', self.gf('django.db.models.fields.CharField')(max_length=200)),
-            ('aws_api_key', self.gf('django.db.models.fields.CharField')(max_length=200)),
-            ('aws_api_secret', self.gf('django.db.models.fields.CharField')(max_length=200)),
-            ('seller_id', self.gf('django.db.models.fields.CharField')(max_length=200)),
-        ))
-        db.send_create_signal('oscar_mws', ['MerchantAccount'])
+        # Adding field 'FeedSubmission.merchant'
+        db.add_column('oscar_mws_feedsubmission', 'merchant',
+                      self.gf('django.db.models.fields.related.ForeignKey')(related_name='feed_submissions', null=True, to=orm['oscar_mws.MerchantAccount']),
+                      keep_default=False)
 
-        # Adding unique constraint on 'MerchantAccount', fields ['aws_api_key', 'aws_api_secret', 'seller_id']
-        db.create_unique('oscar_mws_merchantaccount', ['aws_api_key', 'aws_api_secret', 'seller_id'])
-
-        # Adding model 'AmazonMarketplace'
-        db.create_table('oscar_mws_amazonmarketplace', (
-            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('name', self.gf('django.db.models.fields.CharField')(max_length=200)),
-            ('merchant', self.gf('django.db.models.fields.related.ForeignKey')(related_name='marketplaces', to=orm['oscar_mws.MerchantAccount'])),
-            ('marketplace', self.gf('django.db.models.fields.CharField')(max_length=2)),
-            ('marketplace_id', self.gf('django.db.models.fields.CharField')(unique=True, max_length=16)),
-            ('domain', self.gf('django.db.models.fields.CharField')(max_length=200, blank=True)),
-            ('currency_code', self.gf('django.db.models.fields.CharField')(max_length=3, blank=True)),
-        ))
-        db.send_create_signal('oscar_mws', ['AmazonMarketplace'])
-
-        # Adding M2M table for field marketplaces on 'AmazonProfile'
-        db.create_table('oscar_mws_amazonprofile_marketplaces', (
-            ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
-            ('amazonprofile', models.ForeignKey(orm['oscar_mws.amazonprofile'], null=False)),
-            ('amazonmarketplace', models.ForeignKey(orm['oscar_mws.amazonmarketplace'], null=False))
-        ))
-        db.create_unique('oscar_mws_amazonprofile_marketplaces', ['amazonprofile_id', 'amazonmarketplace_id'])
+        # Adding field 'FulfillmentOrder.merchant'
+        db.add_column('oscar_mws_fulfillmentorder', 'merchant',
+                      self.gf('django.db.models.fields.related.ForeignKey')(related_name='fulfillment_orders', null=True, to=orm['oscar_mws.MerchantAccount']),
+                      keep_default=False)
 
 
     def backwards(self, orm):
-        # Removing unique constraint on 'MerchantAccount', fields ['aws_api_key', 'aws_api_secret', 'seller_id']
-        db.delete_unique('oscar_mws_merchantaccount', ['aws_api_key', 'aws_api_secret', 'seller_id'])
+        # Deleting field 'FeedSubmission.merchant'
+        db.delete_column('oscar_mws_feedsubmission', 'merchant_id')
 
-        # Deleting model 'MerchantAccount'
-        db.delete_table('oscar_mws_merchantaccount')
-
-        # Deleting model 'AmazonMarketplace'
-        db.delete_table('oscar_mws_amazonmarketplace')
-
-        # Removing M2M table for field marketplaces on 'AmazonProfile'
-        db.delete_table('oscar_mws_amazonprofile_marketplaces')
+        # Deleting field 'FulfillmentOrder.merchant'
+        db.delete_column('oscar_mws_fulfillmentorder', 'merchant_id')
 
 
     models = {
@@ -318,10 +289,10 @@ class Migration(SchemaMigration):
             'currency_code': ('django.db.models.fields.CharField', [], {'max_length': '3', 'blank': 'True'}),
             'domain': ('django.db.models.fields.CharField', [], {'max_length': '200', 'blank': 'True'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'marketplace': ('django.db.models.fields.CharField', [], {'max_length': '2'}),
             'marketplace_id': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '16'}),
             'merchant': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'marketplaces'", 'to': "orm['oscar_mws.MerchantAccount']"}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '200'})
+            'name': ('django.db.models.fields.CharField', [], {'max_length': '200'}),
+            'region': ('django.db.models.fields.CharField', [], {'max_length': '2'})
         },
         'oscar_mws.amazonprofile': {
             'Meta': {'object_name': 'AmazonProfile'},
@@ -362,6 +333,7 @@ class Migration(SchemaMigration):
             'date_updated': ('django.db.models.fields.DateTimeField', [], {}),
             'feed_type': ('django.db.models.fields.CharField', [], {'max_length': '200'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'merchant': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'feed_submissions'", 'null': 'True', 'to': "orm['oscar_mws.MerchantAccount']"}),
             'processing_status': ('django.db.models.fields.CharField', [], {'max_length': '200'}),
             'submission_id': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '64'}),
             'submitted_products': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'feed_submissions'", 'symmetrical': 'False', 'to': "orm['catalogue.Product']"})
@@ -372,6 +344,7 @@ class Migration(SchemaMigration):
             'fulfillment_id': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '32'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'lines': ('django.db.models.fields.related.ManyToManyField', [], {'related_name': "'fulfillment_orders'", 'symmetrical': 'False', 'through': "orm['oscar_mws.FulfillmentOrderLine']", 'to': "orm['order.Line']"}),
+            'merchant': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'fulfillment_orders'", 'null': 'True', 'to': "orm['oscar_mws.MerchantAccount']"}),
             'order': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'fulfillment_orders'", 'to': "orm['order.Order']"}),
             'status': ('django.db.models.fields.CharField', [], {'max_length': '25', 'blank': 'True'})
         },

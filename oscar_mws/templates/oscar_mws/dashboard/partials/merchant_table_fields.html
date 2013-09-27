@@ -1,0 +1,14 @@
+{% load i18n %}
+{% load url from future %}
+{% with mp_count=marketplace_list|length %}
+<td {% if mp_count > 1 %}rowspan="{{ mp_count }}"{% endif %}>
+    {{ merchant.name }}
+</td>
+<td {% if mp_count > 1 %}rowspan="{{ mp_count }}"{% endif %}>
+    {{ merchant.seller_id }}
+</td>
+<td {% if mp_count > 1 %}rowspan="{{ mp_count }}"{% endif %}>
+    <strong>{% trans "API key:" %}</strong> {{ merchant.aws_api_key }} <br />
+    <strong>{% trans "API secret:" %}</strong> {{ merchant.aws_api_secret }}
+</td>
+{% endwith %}

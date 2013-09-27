@@ -47,6 +47,10 @@ shipping are not available for this style."""
 
 class TestBaseProductMapper(TestCase):
 
+    def setUp(self):
+        super(TestBaseProductMapper, self).setUp()
+        self.mapper = ProductMapper(product=mock.MagicMock())
+
     def test_gets_value_from_object_attribute(self):
         class Mock(object):
             pass
@@ -54,9 +58,8 @@ class TestBaseProductMapper(TestCase):
         obj = Mock()
         obj.test_attribute = 'amazing value'
 
-        mapper = ProductMapper()
         self.assertEquals(
-            mapper._get_value_from(obj, 'test_attribute'),
+            self.mapper._get_value_from(obj, 'test_attribute'),
             obj.test_attribute
         )
 
@@ -64,9 +67,8 @@ class TestBaseProductMapper(TestCase):
         obj = mock.Mock()
         obj.get_test_attribute = mock.Mock(return_value='amazing value')
 
-        mapper = ProductMapper()
         self.assertEquals(
-            mapper._get_value_from(obj, 'test_attribute'),
+            self.mapper._get_value_from(obj, 'test_attribute'),
             obj.get_test_attribute()
         )
 
@@ -78,8 +80,8 @@ class TestBaseProductMapper(TestCase):
             release_date=UTC_NOW
         )
 
-        mapper = ProductMapper()
-        xml = etree.tostring(mapper.get_product_xml(product))
+        mapper = ProductMapper(product=product)
+        xml = etree.tostring(mapper.get_product_xml())
         self.assertIn(
             '<SKU>{0}</SKU>'.format(product.stockrecord.partner_sku),
             xml

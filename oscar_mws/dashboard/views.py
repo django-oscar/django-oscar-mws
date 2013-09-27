@@ -12,6 +12,7 @@ from django import forms
 
 from ..feeds import gateway
 from .forms import MwsProductFeedForm
+from ..seller.gateway import update_marketplaces
 from ..fulfillment.creator import FulfillmentOrderCreator
 from ..fulfillment.gateway import update_fulfillment_orders
 
@@ -19,6 +20,8 @@ Order = get_model('order', 'Order')
 Product = get_model('catalogue', 'Product')
 FeedSubmission = get_model("oscar_mws", "FeedSubmission")
 FulfillmentOrder = get_model("oscar_mws", "FulfillmentOrder")
+MerchantAccount = get_model("oscar_mws", "MerchantAccount")
+AmazonMarketplace = get_model("oscar_mws", "AmazonMarketplace")
 
 
 class ProductListView(FormMixin, generic.ListView):
@@ -264,3 +267,45 @@ class FulfillmentOrderDetailView(generic.DetailView):
         if not instance:
             raise Http404
         return instance[0]
+
+
+class MerchantListView(generic.ListView):
+    model = MerchantAccount
+    context_object_name = 'merchant_list'
+    template_name = 'oscar_mws/dashboard/merchant_list.html'
+
+
+class MerchantCreateView(generic.CreateView):
+    model = MerchantAccount
+    template_name = 'oscar_mws/dashboard/merchant_update.html'
+    success_url = reverse_lazy('mws-dashboard:merchant-list')
+
+
+class MerchantUpdateView(generic.UpdateView):
+    model = MerchantAccount
+    template_name = 'oscar_mws/dashboard/merchant_update.html'
+    success_url = reverse_lazy('mws-dashboard:merchant-list')
+
+
+class MarketplaceUpdateView(generic.View):
+
+    def get(self, request, *args, **kwargs):
+        seller_id = kwargs.get('seller_id')
+        if not seller_id:
+            messages.error(
+                self.request,
+                _("Seller ID required to update marketplaces"),
+            )
+        try:
+            seller = MerchantAccount.objects.get(seller_id=seller_id)
+        except MerchantAccount.DoesNotExist:
+            messages.error(
+                self.request,
+                _("No seller with ID '{0}' configured").format(seller_id),
+            )
+        else:
+            update_marketplaces(seller)
+
+        return HttpResponseRedirect(
+            reverse_lazy('mws-dashboard:merchant-list')
+        )

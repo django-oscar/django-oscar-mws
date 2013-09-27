@@ -4,11 +4,10 @@ from lxml import etree
 from cStringIO import StringIO
 from dateutil.parser import parse as du_parse
 
-from django.conf import settings
 from django.db.models import get_model
 
 from .. import abstract_models as am
-from ..connection import get_connection
+from ..connection import get_merchant_connection
 from ..feeds import writers
 
 logger = logging.getLogger('oscar_mws')
@@ -18,13 +17,14 @@ FeedReport = get_model("oscar_mws", "FeedReport")
 FeedResult = get_model("oscar_mws", "FeedResult")
 AmazonProfile = get_model('oscar_mws', 'AmazonProfile')
 FeedSubmission = get_model("oscar_mws", "FeedSubmission")
+MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
 
 
 class MwsFeedError(BaseException):
     pass
 
 
-def handle_feed_submission_response(response):
+def handle_feed_submission_response(merchant, response):
     fsinfo = response.SubmitFeedResult.FeedSubmissionInfo
 
     try:
@@ -40,6 +40,7 @@ def handle_feed_submission_response(response):
             feed_type=fsinfo.FeedType,
         )
 
+    submission.merchant = merchant
     submission.processing_status = fsinfo.FeedProcessingStatus
     submission.save()
 
@@ -50,7 +51,7 @@ def handle_feed_submission_response(response):
     return submission
 
 
-def submit_product_feed(products, merchant_id=None, marketplace_ids=None,
+def submit_product_feed(products, merchant=None, marketplaces=None,
                         dry_run=False):
     """
     Generate a product feed for the list of *products* and submit it to
@@ -58,49 +59,65 @@ def submit_product_feed(products, merchant_id=None, marketplace_ids=None,
     FeedSubmission to log the progress of the submission as well as the
     products that are handled as part of the submission.
     """
-    if not merchant_id:
-        merchant_id = getattr(settings, "MWS_SELLER_ID")
+    merchants = None
+    marketplace_ids = []
+    if marketplaces is not None:
+        merchant_ids = set([m.merchant_id for m in marketplaces])
+        marketplace_ids = [m.marketplace_id for m in marketplaces]
+        if len(merchant_ids) > 1:
+            raise MwsFeedError(
+                "Marketplaces of different merchant accounts specified. This "
+                "is invalid, please only use marketplaces for the same seller"
+            )
 
-    if not merchant_id:
-        raise MwsFeedError("Seller ID required to submit feed")
+        merchants = MerchantAccount.objects.filter(
+            id__in=merchant_ids
+        ).distinct()
 
-    logger.info(
-        "Updating {0} products for seller ID {1}".format(
-            len(products),
-            merchant_id,
+    if merchant:
+        merchants = [merchant]
+
+    if not merchants:
+        raise MwsFeedError(
+            "no merchant specified or no merchant found for marketplace"
         )
-    )
 
-    optional = {}
-    if marketplace_ids:
-        optional['MarketplaceIdList'] = marketplace_ids
+    submissions = []
+    for merchant in merchants:
+        logger.info(
+            "Updating {0} products for seller ID {1}".format(
+                len(products),
+                merchant.seller_id,
+            )
+        )
 
-    writer = writers.ProductFeedWriter(merchant_id)
-    for product in products:
-        writer.add_product(product)
-    xml_data = writer.as_string(pretty_print=dry_run)
+        writer = writers.ProductFeedWriter(merchant_id=merchant.seller_id)
+        for product in products:
+            writer.add_product(product)
+        xml_data = writer.as_string(pretty_print=dry_run)
 
-    logger.debug("Product feed XML to be submitted:\n{0}".format(xml_data))
+        logger.debug("Product feed XML to be submitted:\n{0}".format(xml_data))
 
-    if dry_run:
-        print xml_data
-        return
+        if dry_run:
+            print xml_data
+            return
 
-    mws_connection = get_connection()
-    response = mws_connection.submit_feed(
-        FeedContent=xml_data,
-        FeedType=am.TYPE_POST_PRODUCT_DATA,
-        content_type='text/xml',
-        **optional
-    )
-    submission = handle_feed_submission_response(response)
-    for product in products:
-        submission.submitted_products.add(product)
-    return submission
+        mws_connection = get_merchant_connection(merchant.seller_id)
+        response = mws_connection.submit_feed(
+            FeedContent=xml_data,
+            FeedType=am.TYPE_POST_PRODUCT_DATA,
+            content_type='text/xml',
+            MarketplaceIdList=marketplace_ids or merchant.marketplace_ids
+        )
+        submission = handle_feed_submission_response(merchant, response)
+        for product in products:
+            submission.submitted_products.add(product)
+        submissions.append(submission)
+    return submissions
 
 
-def update_feed_submission(submission_id=None):
-    response = get_connection().get_feed_submission_list(
+def update_feed_submission(merchant, submission_id=None):
+    response = get_merchant_connection(merchant.id).get_feed_submission_list(
         FeedSubmissionIdList=[submission_id]
     )
     for result in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
@@ -117,12 +134,13 @@ def update_feed_submission(submission_id=None):
                 feed_type=result.FeedType,
             )
 
+        submission.merchant = merchant
         submission.processing_status = result.FeedProcessingStatus
         submission.save()
     return submission
 
 
-def update_feed_submissions(submission_id=None):
+def update_feed_submissions(merchant):
     """
     Check the MWS API for updates on previously submitted feeds. If
     *submission_id* is specified only the feed submission matching that ID
@@ -131,20 +149,19 @@ def update_feed_submissions(submission_id=None):
 
     Returns List of updated ``FeedSubmission`` instances.
     """
-    if submission_id:
-        submissions = FeedSubmission.objects.filter(
-            submission_id=submission_id
-        )
-    else:
-        submissions = FeedSubmission.objects.exclude(
-            processing_status__in=[am.STATUS_DONE, am.STATUS_CANCELLED]
-        )
-    if not submissions and submission_id is not None:
-        return []
-
-    response = get_connection().get_feed_submission_list(
-        FeedSubmissionIdList=[s.submission_id for s in submissions]
+    submissions = FeedSubmission.objects.exclude(
+        processing_status__in=[am.STATUS_DONE, am.STATUS_CANCELLED],
+        merchant=merchant
     )
+
+    api_kwargs = {}
+    if submissions:
+        api_kwargs['FeedSubmissionIdList'] = [
+            s.submission_id for s in submissions
+        ]
+
+    connection = get_merchant_connection(merchant.seller_id)
+    response = connection.get_feed_submission_list(**api_kwargs)
 
     if response.GetFeedSubmissionListResult.HasNext:
         #TODO: need to handle this flag
@@ -168,32 +185,38 @@ def update_feed_submissions(submission_id=None):
         if submission.processing_status != result.FeedProcessingStatus:
             updated_feeds.append(submission)
 
+        submission.merchant = merchant
         submission.processing_status = result.FeedProcessingStatus
         submission.save()
 
     return updated_feeds
 
 
-def list_submitted_feeds():
-    mws_connection = get_connection()
-    response = mws_connection.get_feed_submission_list()
+def list_submitted_feeds(merchants=None):
+    if not merchants:
+        merchants = MerchantAccount.objects.all()
 
-    feed_info = []
-    for feed in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
-        feed_info.append({
-            'submission_id': feed.FeedSubmissionId,
-            'feed_type': feed.FeedType,
-            'status': feed.FeedProcessingStatus,
-            'date_submitted': du_parse(
-                feed.get('SubmittedDate') or ''
-            ),
-            'date_processing_started': du_parse(
-                feed.get('StartedProcessingDate') or ''
-            ),
-            'date_processing_ended': du_parse(
-                feed.get('CompletedProcessingDate') or ''
-            ),
-        })
+    feed_info = {}
+    for merchant in merchants:
+        mws_connection = get_merchant_connection(merchant.seller_id)
+        response = mws_connection.get_feed_submission_list()
+
+        feed_info[merchant.seller_id] = []
+        for feed in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
+            feed_info[merchant.seller_id].append({
+                'submission_id': feed.FeedSubmissionId,
+                'feed_type': feed.FeedType,
+                'status': feed.FeedProcessingStatus,
+                'date_submitted': du_parse(
+                    feed.get('SubmittedDate') or ''
+                ),
+                'date_processing_started': du_parse(
+                    feed.get('StartedProcessingDate') or ''
+                ),
+                'date_processing_ended': du_parse(
+                    feed.get('CompletedProcessingDate') or ''
+                ),
+            })
 
     return feed_info
 
@@ -210,7 +233,8 @@ def process_submission_results(submission):
     logger.info(
         'Requesting submission result for {0}'.format(submission.submission_id)
     )
-    response = get_connection().get_feed_submission_result(
+    connection = get_merchant_connection(submission.merchant.seller_id)
+    response = connection.get_feed_submission_result(
         FeedSubmissionId=submission.submission_id
     )
 
@@ -263,44 +287,54 @@ def process_submission_results(submission):
     return reports
 
 
-def update_product_identifiers(products, marketplace_id=None):
-    if not marketplace_id:
-        marketplace_id = settings.MWS_MARKETPLACE_ID
-
+def update_product_identifiers(merchant, products):
+    connection = get_merchant_connection(merchant.seller_id)
     for product in products:
-        response = get_connection().get_matching_product_for_id(
-            MarketplaceId=marketplace_id,
-            IdType="SellerSKU",
-            IdList=[product.amazon_profile.sku],
-        )
+        marketplace_ids = [m.marktplace_id for m in product.marketplaces.all()]
+        if not marketplace_ids:
+            marketplace_ids = [None]
 
-        result = response.GetMatchingProductForIdResult
-        if not result.get('status') == 'Success':
-            logger.info(
-                'Skipping product with SKU {0}, no info available'.format(
-                    response.get("Id")
-                )
+        for marketplace_id in marketplace_ids:
+            response = connection.get_matching_product_for_id(
+                MarketplaceId=marketplace_id,
+                IdType="SellerSKU",
+                IdList=[product.amazon_profile.sku],
             )
-            continue
 
-        for fprod in response.GetMatchingProductForIdResult.Products.Product:
-            mp_asin = fprod.Identifiers.MarketplaceASIN
-            marketplace_id = mp_asin.MarketplaceId
-            asin = mp_asin.ASIN
+            result = response.GetMatchingProductForIdResult
+            if not result.get('status') == 'Success':
+                logger.info(
+                    'Skipping product with SKU {0}, no info available'.format(
+                        response.get("Id")
+                    )
+                )
+                continue
 
-            if asin:
-                AmazonProfile.objects.filter(**{
-                    AmazonProfile.SELLER_SKU_FIELD: result.get("Id")
-                }).update(asin=asin)
+            for fprod in response.GetMatchingProductForIdResult.Products.Product:
+                mp_asin = fprod.Identifiers.MarketplaceASIN
+                marketplace_id = mp_asin.MarketplaceId
+                asin = mp_asin.ASIN
+
+                if asin:
+                    AmazonProfile.objects.filter(**{
+                        AmazonProfile.SELLER_SKU_FIELD: result.get("Id")
+                    }).update(asin=asin)
 
 
-def switch_product_fulfillment(products, merchant_id=None, fulfillment_by=None,
+def switch_product_fulfillment(products, merchant_id, fulfillment_by=None,
                                fulfillment_center_id="AMAZON_NA",
                                dry_run=False):
-    if not merchant_id:
-        merchant_id = getattr(settings, "MWS_SELLER_ID")
+    try:
+        merchant = MerchantAccount.objects.get(seller_id=merchant_id)
+    except MerchantAccount.DoesNotExist:
+        logger.error(
+            "merchant account with ID {0} does not exists".format(
+                merchant_id
+            )
+        )
+        return
 
-    writer = writers.InventoryFeedWriter(merchant_id)
+    writer = writers.InventoryFeedWriter(merchant.seller_id)
     for product in products:
         writer.add_product(
             product,
@@ -316,10 +350,10 @@ def switch_product_fulfillment(products, merchant_id=None, fulfillment_by=None,
         print xml_data
         return
 
-    mws_connection = get_connection()
+    mws_connection = get_merchant_connection(merchant.seller_id)
     response = mws_connection.submit_feed(
         FeedContent=xml_data,
         FeedType=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
         content_type='text/xml',
     )
-    return handle_feed_submission_response(response)
+    return handle_feed_submission_response(merchant, response)

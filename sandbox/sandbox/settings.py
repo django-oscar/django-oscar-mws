@@ -185,6 +185,8 @@ HAYSTACK_CONNECTIONS = {
     },
 }
 
+OSCAR_DASHBOARD_NAVIGATION += MWS_DASHBOARD_NAVIGATION
+
 # A sample logging configuration. The only tangible logging
 # performed by this configuration is to send an email to
 # the site admins on every HTTP 500 error when DEBUG=False.
