@@ -116,25 +116,12 @@ def submit_product_feed(products, merchant=None, marketplaces=None,
     return submissions
 
 
-def update_feed_submission(merchant, submission_id=None):
-    response = get_merchant_connection(merchant.id).get_feed_submission_list(
-        FeedSubmissionIdList=[submission_id]
+def update_feed_submission(submission):
+    connection = get_merchant_connection(submission.merchant.seller_id)
+    response = connection.get_feed_submission_list(
+        FeedSubmissionIdList=[submission.submission_id]
     )
     for result in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
-        try:
-            submission = FeedSubmission.objects.get(
-                submission_id=result.FeedSubmissionId,
-                date_submitted=du_parse(result.SubmittedDate),
-                feed_type=result.FeedType,
-            )
-        except FeedSubmission.DoesNotExist:
-            submission = FeedSubmission(
-                submission_id=result.FeedSubmissionId,
-                date_submitted=du_parse(result.SubmittedDate),
-                feed_type=result.FeedType,
-            )
-
-        submission.merchant = merchant
         submission.processing_status = result.FeedProcessingStatus
         submission.save()
     return submission
@@ -290,7 +277,9 @@ def process_submission_results(submission):
 def update_product_identifiers(merchant, products):
     connection = get_merchant_connection(merchant.seller_id)
     for product in products:
-        marketplace_ids = [m.marktplace_id for m in product.marketplaces.all()]
+        marketplace_ids = [
+            m.marketplace_id for m in product.amazon_profile.marketplaces.all()
+        ]
         if not marketplace_ids:
             marketplace_ids = [None]
 
@@ -321,25 +310,13 @@ def update_product_identifiers(merchant, products):
                     }).update(asin=asin)
 
 
-def switch_product_fulfillment(products, merchant_id, fulfillment_by=None,
-                               fulfillment_center_id="AMAZON_NA",
-                               dry_run=False):
-    try:
-        merchant = MerchantAccount.objects.get(seller_id=merchant_id)
-    except MerchantAccount.DoesNotExist:
-        logger.error(
-            "merchant account with ID {0} does not exists".format(
-                merchant_id
-            )
-        )
-        return
-
-    writer = writers.InventoryFeedWriter(merchant.seller_id)
+def switch_product_fulfillment(marketplace, products, dry_run=False):
+    writer = writers.InventoryFeedWriter(marketplace.merchant.seller_id)
     for product in products:
         writer.add_product(
             product,
-            fulfillment_by=fulfillment_by,
-            fulfillment_center_id=fulfillment_center_id,
+            fulfillment_by=product.amazon_profile.fulfillment_by,
+            fulfillment_center_id=marketplace.fulfillment_center_id,
         )
 
     xml_data = writer.as_string(pretty_print=dry_run)
@@ -350,10 +327,10 @@ def switch_product_fulfillment(products, merchant_id, fulfillment_by=None,
         print xml_data
         return
 
-    mws_connection = get_merchant_connection(merchant.seller_id)
+    mws_connection = get_merchant_connection(marketplace.merchant.seller_id)
     response = mws_connection.submit_feed(
         FeedContent=xml_data,
         FeedType=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
         content_type='text/xml',
     )
-    return handle_feed_submission_response(merchant, response)
+    return handle_feed_submission_response(marketplace.merchant, response)

@@ -122,7 +122,8 @@ class AbstractFeedSubmission(models.Model):
     merchant = models.ForeignKey(
         "MerchantAccount",
         verbose_name=_("Merchant account"),
-        related_name="feed_submissions"
+        related_name="feed_submissions",
+        null=True, blank=False,
     )
     submitted_products = models.ManyToManyField(
         'catalogue.Product',
@@ -301,7 +302,8 @@ class AbstractFulfillmentOrder(models.Model):
     merchant = models.ForeignKey(
         "MerchantAccount",
         verbose_name=_("Merchant account"),
-        related_name="fulfillment_orders"
+        related_name="fulfillment_orders",
+        null=True, blank=False,
     )
     order = models.ForeignKey(
         'order.Order',
@@ -484,6 +486,10 @@ class AbstractAmazonMarketplace(models.Model):
         max_length=3,
         blank=True
     )
+
+    @property
+    def fulfillment_center_id(self):
+        return oscar_mws.MWS_FULFILLMENT_CENTERS.get(self.region)
 
     def __unicode__(self):
         return "{0} ({1})".format(self.name, self.region)

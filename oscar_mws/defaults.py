@@ -21,7 +21,7 @@ MWS_DASHBOARD_NAVIGATION = [
             },
             {
                 'label': _('Merchants & Marketplaces'),
-                'url_name': 'mws-dashboard:marketplace-list',
+                'url_name': 'mws-dashboard:merchant-list',
             },
             {
                 'label': _('Feed submissions'),

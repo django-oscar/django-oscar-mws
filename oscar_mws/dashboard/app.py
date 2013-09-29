@@ -10,6 +10,7 @@ class OscarMwsDashboardApplication(Application):
     name = 'mws-dashboard'
 
     product_list_view = views.ProductListView
+    profile_update_view = views.AmazonProfileUpdateView
 
     merchant_list_view = views.MerchantListView
     merchant_create_view = views.MerchantCreateView
@@ -31,6 +32,11 @@ class OscarMwsDashboardApplication(Application):
                 r'^products/$',
                 self.product_list_view.as_view(),
                 name='product-list'
+            ),
+            url(
+                r'^product/(?P<pk>\d+)/$',
+                self.profile_update_view.as_view(),
+                name='profile-update'
             ),
             url(
                 r'^merchants/$',

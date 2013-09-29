@@ -10,24 +10,27 @@ from boto.mws.exception import InvalidParameterValue
 
 from django import forms
 
-from ..feeds import gateway
-from .forms import MwsProductFeedForm
+import oscar_mws
+
+from ..feeds import gateway as feeds_gw
+from . import forms as dashboard_forms
 from ..seller.gateway import update_marketplaces
 from ..fulfillment.creator import FulfillmentOrderCreator
 from ..fulfillment.gateway import update_fulfillment_orders
 
 Order = get_model('order', 'Order')
 Product = get_model('catalogue', 'Product')
+AmazonProfile = get_model("oscar_mws", "AmazonProfile")
 FeedSubmission = get_model("oscar_mws", "FeedSubmission")
-FulfillmentOrder = get_model("oscar_mws", "FulfillmentOrder")
 MerchantAccount = get_model("oscar_mws", "MerchantAccount")
+FulfillmentOrder = get_model("oscar_mws", "FulfillmentOrder")
 AmazonMarketplace = get_model("oscar_mws", "AmazonMarketplace")
 
 
 class ProductListView(FormMixin, generic.ListView):
     template_name = 'oscar_mws/dashboard/product_list.html'
     context_object_name = 'product_list'
-    form_class = MwsProductFeedForm
+    form_class = dashboard_forms.MwsProductFeedForm
 
     def make_object_list(self):
         self.object_list = self.get_queryset()
@@ -61,14 +64,15 @@ class ProductListView(FormMixin, generic.ListView):
     def get_queryset(self):
         return Product.objects.prefetch_related('amazon_profile')
 
-    def handle_submit_product_feed(self):
+    def handle_submit_product_feed(self, marketplace, form):
         try:
-            submission = gateway.submit_product_feed(
+            submission = feeds_gw.submit_product_feed(
+                marketplace.merchant,
                 Product.objects.filter(
                     Q(amazon_profile=None) | Q(amazon_profile__asin=u'')
                 ),
             )
-        except gateway.MwsFeedError:
+        except feeds_gw.MwsFeedError:
             messages.info(self.request, "Submitting feed failed")
         else:
             messages.info(
@@ -83,12 +87,15 @@ class ProductListView(FormMixin, generic.ListView):
                 extra_tags='safe',
             )
 
-    def handle_switch_to_afn(self):
+    def handle_switch_to_afn(self, marketplace, form):
         try:
-            submission = gateway.switch_product_fulfillment(
-                Product.objects.all(),
+            submission = feeds_gw.switch_product_fulfillment(
+                marketplace,
+                Product.objects.filter(
+                    amazon_profile__marketplaces=marketplace
+                ),
             )
-        except gateway.MwsFeedError:
+        except feeds_gw.MwsFeedError:
             messages.info(self.request, "Submitting feed failed")
         else:
             messages.info(
@@ -98,9 +105,14 @@ class ProductListView(FormMixin, generic.ListView):
                 )
             )
 
-    def handle_update_product_identifiers(self):
+    def handle_update_product_identifiers(self, marketplace, form):
         try:
-            gateway.update_product_identifiers(Product.objects.all())
+            feeds_gw.update_product_identifiers(
+                marketplace.merchant,
+                Product.objects.filter(
+                    amazon_profile__marketplaces__isnull=False
+                )
+            )
         except InvalidParameterValue as exc:
             messages.error(
                 self.request,
@@ -111,11 +123,16 @@ class ProductListView(FormMixin, generic.ListView):
             messages.info(self.request, "Updated product ASINs")
 
     def form_valid(self, form):
+        marketplace = form.cleaned_data.get('marketplace')
+        if not marketplace:
+            messages.error(
+                self.request,
+                _("No merchant account for Amazon selected but required.")
+            )
+            return self.render_to_response(self.get_context_data())
         selected = form.cleaned_data.get('submission_selection')
-
-        print 'submitting', selected
         if selected and hasattr(self, 'handle_{0}'.format(selected)):
-            getattr(self, 'handle_{0}'.format(selected))()
+            getattr(self, 'handle_{0}'.format(selected))(marketplace, form)
 
         return self.render_to_response(self.get_context_data())
 
@@ -130,6 +147,14 @@ class ProductListView(FormMixin, generic.ListView):
 
     def get_success_url(self):
         return reverse('mws-dashboard:product-list')
+
+
+class AmazonProfileUpdateView(generic.UpdateView):
+    template_name = 'oscar_mws/dashboard/amazon_profile_update.html'
+    context_object_name = 'amazon_profile'
+    model = AmazonProfile
+    form_class = dashboard_forms.AmazonProfileUpdateForm
+    success_url = reverse_lazy('mws-dashboard:product-list')
 
 
 class SubmissionListView(generic.ListView):
@@ -158,38 +183,57 @@ class SubmissionDetailView(generic.DetailView):
         return submission[0]
 
 
-class SubmissionUpdateView(generic.RedirectView):
-    permanent = False
+class SubmissionUpdateView(generic.View):
     redirect_url = reverse_lazy('mws-dashboard:submission-list')
 
-    def get_redirect_url(self, **kwargs):
-        submission_id = self.kwargs.get('submission_id')
-        try:
-            gateway.update_feed_submission(submission_id)
-        except gateway.MwsFeedError:
-            messages.error(self.request, "Updating submission status failed")
-            return self.redirect_url
-        else:
-            messages.info(
-                self.request,
-                "Updated feed submission {0}".format(submission_id)
-            )
+    def get(self, request, *args, **kwargs):
+        submission_id = kwargs.get('submission_id')
         try:
             submission = FeedSubmission.objects.get(
                 submission_id=submission_id
             )
         except FeedSubmission.DoesNotExist:
-            return self.redirect_url
+            messages.error(
+                self.request,
+                _("Could not find submission with ID {0}.").format(
+                    submission_id
+                )
+            )
+            return HttpResponseRedirect(self.redirect_url)
+
+        try:
+            feeds_gw.update_feed_submission(submission)
+        except feeds_gw.MwsFeedError:
+            messages.error(self.request, "Updating submission status failed")
+            return HttpResponseRedirect(self.redirect_url)
+        else:
+            messages.info(
+                self.request,
+                "Updated feed submission {0}".format(submission_id)
+            )
 
         if submission.processing_status == '_DONE_':
-            gateway.process_submission_results(submission)
+            feeds_gw.process_submission_results(submission)
 
-        return self.redirect_url
+        return HttpResponseRedirect(self.redirect_url)
 
 
 class FulfillmentOrderCreateView(generic.FormView):
     model = FulfillmentOrder
     form_class = forms.Form
+
+    default_fulfillment_region = oscar_mws.MWS_MARKETPLACE_US
+
+    def get_merchant(self, order):
+        """
+        Get the Amazon merchant account that should be used for this *order*.
+        """
+        merchants = MerchantAccount.objects.filter(
+            marketplaces__region=self.default_fulfillment_region
+        )[:1]
+        if not merchants:
+            return None
+        return merchants[0]
 
     def form_valid(self, form):
         order_number = self.kwargs.get('order_number')
@@ -209,7 +253,16 @@ class FulfillmentOrderCreateView(generic.FormView):
             )
             return HttpResponseRedirect(self.get_order_list_url())
 
-        order_creator = FulfillmentOrderCreator()
+        merchant = self.get_merchant(order)
+        if not merchant:
+            messages.error(
+                self.request,
+                _("Could not find Amazon merchant suitable for order "
+                  "#{0}").format(order_number)
+            )
+            return HttpResponseRedirect(self.get_order_list_url())
+
+        order_creator = FulfillmentOrderCreator(merchant)
         submitted_orders = order_creator.create_fulfillment_order(order)
 
         if not order_creator.errors:
@@ -240,16 +293,18 @@ class FulfillmentOrderCreateView(generic.FormView):
         return reverse("dashboard:order-list")
 
 
-class FulfillmentOrderUpdateView(generic.RedirectView):
-    permanent = False
+class FulfillmentOrderUpdateView(generic.View):
 
-    def get_redirect_url(self, order_number=None):
+    def get(self, request, *args, **kwargs):
+        order_number = kwargs.get('order_number')
         update_fulfillment_orders(
             FulfillmentOrder.objects.filter(order__number=order_number)
         )
-        return reverse(
-            'dashboard:order-detail',
-            kwargs={'number': order_number}
+        return HttpResponseRedirect(
+            reverse(
+                'dashboard:order-detail',
+                kwargs={'number': order_number}
+            )
         )
 
 
