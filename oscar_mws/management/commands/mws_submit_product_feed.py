@@ -1,6 +1,5 @@
 from optparse import make_option
 
-from django.conf import settings
 from django.db.models import get_model
 from django.core.management.base import NoArgsCommand
 
@@ -31,8 +30,6 @@ class Command(NoArgsCommand):
         products = Product.objects.all()
 
         merchant_id = options.get('seller_id')
-        if not merchant_id:
-            merchant_id = getattr(settings, "MWS_SELLER_ID")
 
         if options.get('dry_run'):
             submit_product_feed(products, merchant_id, dry_run=True)
