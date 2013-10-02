@@ -35,12 +35,12 @@ class OscarMwsDashboardApplication(Application):
                 name='profile-list'
             ),
             url(
-                r'^profiles/(?P<uuid>[\w-]+)/create/$',
+                r'^profiles/(?P<pk>[\w-]+)/create/$',
                 self.profile_create_view.as_view(),
                 name='profile-create',
             ),
             url(
-                r'^profiles/(?P<uuid>[\w-]+)/$',
+                r'^profiles/(?P<pk>[\w-]+)/$',
                 self.profile_update_view.as_view(),
                 name='profile-update',
             ),

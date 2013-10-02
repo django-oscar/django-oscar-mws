@@ -113,7 +113,7 @@
                                             {% trans "Edit Amazon profile" %}
                                         </a>
                                         {% else %}
-                                        <a href="{% url "mws-dashboard:profile-create" uuid=product.uuid %}">
+                                        <a href="{% url "mws-dashboard:profile-create" product.id %}">
                                             {% trans "Create Amazon profile" %}
                                         </a>
                                         {% endif %}
@@ -124,7 +124,7 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a href="{% url 'dashboard:catalogue-product-delete' product.id %}">
+                                        <a href="{% url "dashboard:catalogue-product-delete" product.id %}">
                                             {% trans "Delete" %}
                                         </a>
                                     </li>

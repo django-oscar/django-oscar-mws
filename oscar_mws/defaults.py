@@ -1,5 +1,3 @@
-import os
-
 from django.utils.translation import ugettext_lazy as _
 
 # Django ORM field description for seller SKU relative to Product model
@@ -13,8 +11,8 @@ MWS_DASHBOARD_NAVIGATION = [
         'icon': 'icon-truck',
         'children': [
             {
-                'label': _('Products'),
-                'url_name': 'mws-dashboard:product-list',
+                'label': _('Profiles'),
+                'url_name': 'mws-dashboard:profile-list',
             },
             {
                 'label': _('Merchants & Marketplaces'),
