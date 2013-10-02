@@ -432,8 +432,14 @@ class AbstractFulfillmentOrderLine(models.Model):
         abstract = True
 
 
+REGIONS = (
+    ('US', 'US'),
+    ('EU', 'EU'),
+)
+
 class AbstractMerchantAccount(models.Model):
     name = models.CharField(_("Name"), max_length=200)
+    region = models.CharField(_('Region'), max_length=2, choices=REGIONS, default='US')
     aws_api_key = models.CharField(_("AWS API Key"), max_length=200)
     aws_api_secret = models.CharField(_("AWS API Secret"), max_length=200)
     seller_id = models.CharField(_("Seller/Merchant ID"), max_length=200)

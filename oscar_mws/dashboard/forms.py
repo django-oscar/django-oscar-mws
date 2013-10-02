@@ -31,3 +31,15 @@ class AmazonProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = get_model('oscar_mws', 'AmazonProfile')
         exclude = ('product', 'asin')
+
+
+class AmazonProfileCreateForm(forms.ModelForm):
+    class Meta:
+        model = get_model('oscar_mws', 'AmazonProfile')
+        exclude = ('asin',)
+
+    def __init__(self, *args, **kwargs):
+        product = kwargs.pop('product')
+        super(AmazonProfileCreateForm, self).__init__(*args, **kwargs)
+        self.fields['product'].initial = product
+        self.fields['product'].widget = forms.HiddenInput()

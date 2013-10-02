@@ -9,7 +9,8 @@ from . import views
 class OscarMwsDashboardApplication(Application):
     name = 'mws-dashboard'
 
-    product_list_view = views.ProductListView
+    profile_list_view = views.ProductListView
+    profile_create_view = views.AmazonProfileCreateView
     profile_update_view = views.AmazonProfileUpdateView
 
     merchant_list_view = views.MerchantListView
@@ -29,14 +30,19 @@ class OscarMwsDashboardApplication(Application):
         urlpatterns = patterns(
             '',
             url(
-                r'^products/$',
-                self.product_list_view.as_view(),
-                name='product-list'
+                r'^profiles/$',
+                self.profile_list_view.as_view(),
+                name='profile-list'
             ),
             url(
-                r'^product/(?P<pk>\d+)/$',
+                r'^profiles/(?P<uuid>[\w-]+)/create/$',
+                self.profile_create_view.as_view(),
+                name='profile-create',
+            ),
+            url(
+                r'^profiles/(?P<uuid>[\w-]+)/$',
                 self.profile_update_view.as_view(),
-                name='profile-update'
+                name='profile-update',
             ),
             url(
                 r'^merchants/$',

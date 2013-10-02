@@ -7,7 +7,7 @@
 {% block body_class %}create-page catalogue{% endblock %}
 
 {% block title %}
-    {% blocktrans with product_title=amazon_profile.product.get_title %}Update '{{ product_title }}'{% endblocktrans %} | {{ block.super }}
+    {% blocktrans with product_title=amazon_profile.product.get_title %}Create '{{ product_title }}'{% endblocktrans %} | {{ block.super }}
 {% endblock %}
 
 {% block breadcrumbs %}

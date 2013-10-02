@@ -41,8 +41,16 @@ def get_merchant_connection(merchant_id):
         )
         return
 
+    if merchant.region == 'EU':
+        host = 'https://mws-eu.amazonservices.com'
+    elif merchant.region == 'US':
+        host = 'https://mws.amazonservices.com'
+    else:
+        host = None
+
     return get_connection(
         merchant_id,
         aws_access_key_id=merchant.aws_api_key,
         aws_secret_access_key=merchant.aws_api_secret,
+        host=host,
     )

@@ -108,9 +108,15 @@
                                 </a>
                                 <ul class="dropdown-menu pull-right">
                                     <li>
+                                        {% if product.amazon_profile %}
                                         <a href="{% url "mws-dashboard:profile-update" product.amazon_profile.id %}">
                                             {% trans "Edit Amazon profile" %}
                                         </a>
+                                        {% else %}
+                                        <a href="{% url "mws-dashboard:profile-create" uuid=product.uuid %}">
+                                            {% trans "Create Amazon profile" %}
+                                        </a>
+                                        {% endif %}
                                     </li>
                                     <li>
                                         <a href="{{ product.get_absolute_url }}">

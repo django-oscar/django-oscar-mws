@@ -149,12 +149,29 @@ class ProductListView(FormMixin, generic.ListView):
         return reverse('mws-dashboard:product-list')
 
 
+class AmazonProfileCreateView(generic.CreateView):
+    template_name = 'oscar_mws/dashboard/amazon_profile_create.html'
+    model = AmazonProfile
+    form_class = dashboard_forms.AmazonProfileCreateForm
+    success_url = reverse_lazy('mws-dashboard:profile-list')
+
+
+    def get_form_kwargs(self):
+        kwargs = super(AmazonProfileCreateView, self).get_form_kwargs()
+        try:
+            product = Product.objects.get(uuid=self.kwargs.get('uuid'))
+        except Product.DoesNotExist:
+            product = None
+        kwargs.update(product=product)
+        return kwargs
+
+
 class AmazonProfileUpdateView(generic.UpdateView):
     template_name = 'oscar_mws/dashboard/amazon_profile_update.html'
     context_object_name = 'amazon_profile'
     model = AmazonProfile
     form_class = dashboard_forms.AmazonProfileUpdateForm
-    success_url = reverse_lazy('mws-dashboard:product-list')
+    success_url = reverse_lazy('mws-dashboard:profile-list')
 
 
 class SubmissionListView(generic.ListView):
