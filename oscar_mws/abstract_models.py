@@ -432,14 +432,22 @@ class AbstractFulfillmentOrderLine(models.Model):
         abstract = True
 
 
-REGIONS = (
-    ('US', 'US'),
-    ('EU', 'EU'),
-)
-
 class AbstractMerchantAccount(models.Model):
+    REGION_CHOICES = (
+        (oscar_mws.MWS_REGION_US, _("United States (US)")),
+        (oscar_mws.MWS_REGION_CA, _("Canada (CA)")),
+        (oscar_mws.MWS_REGION_EU, _("Europe (EU)")),
+        (oscar_mws.MWS_REGION_IN, _("India (IN)")),
+        (oscar_mws.MWS_REGION_JP, _("Japan (JP)")),
+        (oscar_mws.MWS_REGION_CN, _("China (CN)")),
+    )
     name = models.CharField(_("Name"), max_length=200)
-    region = models.CharField(_('Region'), max_length=2, choices=REGIONS, default='US')
+    region = models.CharField(
+        _('Region'),
+        max_length=2,
+        choices=REGION_CHOICES,
+        default=oscar_mws.MWS_REGION_US
+    )
     aws_api_key = models.CharField(_("AWS API Key"), max_length=200)
     aws_api_secret = models.CharField(_("AWS API Secret"), max_length=200)
     seller_id = models.CharField(_("Seller/Merchant ID"), max_length=200)

@@ -1,12 +1,18 @@
 __version__ = (0, 1, 0, 'alpha', 1)
 
+MWS_REGION_US = 'US'
+MWS_REGION_CA = 'CA'
+MWS_REGION_EU = 'EU'
+MWS_REGION_IN = 'IN'
+MWS_REGION_JP = 'JP'
+MWS_REGION_CN = 'CN'
 
-MWS_ENDPOINT_CA = 'https://mws.amazonservices.ca'
-MWS_ENDPOINT_US = 'https://mws.amazonservices.com'
-MWS_ENDPOINT_EU = 'https://mws-eu.amazonservices.com'
-MWS_ENDPOINT_IN = 'https://mws.amazonservices.in'
-MWS_ENDPOINT_JP = 'https://mws.amazonservices.jp'
-MWS_ENDPOINT_CN = 'https://mws.amazonservices.com.cn'
+MWS_ENDPOINT_CA = 'mws.amazonservices.ca'
+MWS_ENDPOINT_US = 'mws.amazonservices.com'
+MWS_ENDPOINT_EU = 'mws-eu.amazonservices.com'
+MWS_ENDPOINT_IN = 'mws.amazonservices.in'
+MWS_ENDPOINT_JP = 'mws.amazonservices.jp'
+MWS_ENDPOINT_CN = 'mws.amazonservices.com.cn'
 
 MWS_MARKETPLACE_US = "US"
 MWS_MARKETPLACE_CA = "CA"
@@ -50,4 +56,13 @@ MWS_FULFILLMENT_CENTERS = {
     MWS_MARKETPLACE_UK: MWS_FULFILLMENT_EU,
     MWS_MARKETPLACE_JP: MWS_FULFILLMENT_JP,
     MWS_MARKETPLACE_CN: MWS_FULFILLMENT_CN,
+}
+
+MWS_REGION_ENDPOINTS = {
+    MWS_REGION_CA: MWS_ENDPOINT_CA,
+    MWS_REGION_US: MWS_ENDPOINT_US,
+    MWS_REGION_EU: MWS_ENDPOINT_EU,
+    MWS_REGION_IN: MWS_ENDPOINT_IN,
+    MWS_REGION_JP: MWS_ENDPOINT_JP,
+    MWS_REGION_CN: MWS_ENDPOINT_CN,
 }
