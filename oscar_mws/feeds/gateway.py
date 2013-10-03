@@ -61,7 +61,7 @@ def submit_product_feed(products, marketplaces, dry_run=False):
     products that are handled as part of the submission.
 
     A list of *marketplaces* is also required that specify the Amazon
-    maketplaces to submit the product(s) to. The marketplaces have to be
+    marketplaces to submit the product(s) to. The marketplaces have to be
     part of the same merchant account and have to have the same language code
     specified. If either of these restrictions is violated, the feed will be
     rejected by Amazon.
@@ -326,6 +326,7 @@ def switch_product_fulfillment(marketplace, products, dry_run=False):
         FeedContent=xml_data,
         FeedType=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
         content_type='text/xml',
+        MarketplaceId=marketplace.marketplace_id
     )
     return handle_feed_submission_response(marketplace.merchant, response,
                                            feed_xml=xml_data)

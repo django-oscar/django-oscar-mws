@@ -1,3 +1,6 @@
+import oscar_mws
+
+from django import forms
 from django.http import Http404, HttpResponseRedirect
 from django.views import generic
 from django.contrib import messages
@@ -7,10 +10,6 @@ from django.utils.translation import ugettext_lazy as _
 from django.core.urlresolvers import reverse, reverse_lazy
 
 from boto.mws.exception import InvalidParameterValue
-
-from django import forms
-
-import oscar_mws
 
 from ..feeds import gateway as feeds_gw
 from . import forms as dashboard_forms
@@ -65,11 +64,14 @@ class ProductListView(FormMixin, generic.ListView):
         return Product.objects.prefetch_related('amazon_profile')
 
     def handle_submit_product_feed(self, marketplace, form):
+        products = self.get_selected_products(form)
+        if not products:
+            products = Product.objects.filter(
+                Q(amazon_profile=None) | Q(amazon_profile__asin=u'')
+            )
         try:
             submissions = feeds_gw.submit_product_feed(
-                products=Product.objects.filter(
-                    Q(amazon_profile=None) | Q(amazon_profile__asin=u'')
-                ),
+                products=products,
                 marketplaces=[marketplace],
             )
         except feeds_gw.MwsFeedError:
@@ -95,12 +97,27 @@ class ProductListView(FormMixin, generic.ListView):
             )
 
     def handle_switch_to_afn(self, marketplace, form):
+        products = self.get_selected_products(form)
+        if not products:
+            products = Product.objects.filter(
+                Q(amazon_profile=None) |
+                Q(amazon_profile__marketplaces=marketplace)
+            )
+        if not products:
+            messages.error(
+                self.request,
+                _('No products specified to switch to AFN'),
+            )
+            return
+        AmazonProfile.objects.filter(
+            product__in=[p.id for p in products],
+        ).update(
+            fulfillment_by=AmazonProfile.FULFILLMENT_BY_AMAZON
+        )
         try:
             submission = feeds_gw.switch_product_fulfillment(
                 marketplace,
-                Product.objects.filter(
-                    amazon_profile__marketplaces=marketplace
-                ),
+                products=products,
             )
         except feeds_gw.MwsFeedError:
             messages.info(self.request, "Submitting feed failed")
@@ -113,12 +130,15 @@ class ProductListView(FormMixin, generic.ListView):
             )
 
     def handle_update_product_identifiers(self, marketplace, form):
+        products = self.get_selected_products(form)
+        if not products:
+            products = Product.objects.filter(
+                amazon_profile__marketplaces__isnull=False
+            )
         try:
             feeds_gw.update_product_identifiers(
                 marketplace.merchant,
-                Product.objects.filter(
-                    amazon_profile__marketplaces__isnull=False
-                )
+                products,
             )
         except InvalidParameterValue as exc:
             messages.error(
@@ -143,6 +163,12 @@ class ProductListView(FormMixin, generic.ListView):
 
         return self.render_to_response(self.get_context_data())
 
+    def get_selected_products(self, form):
+        profile_ids = map(int, form.data.getlist('selected_profiles'))
+        if not profile_ids:
+            return Product.objects.none()
+        return Product.objects.filter(amazon_profile__id__in=profile_ids)
+
     def post(self, request, *args, **kwargs):
         self.make_object_list()
         form_class = self.get_form_class()
@@ -161,7 +187,6 @@ class AmazonProfileCreateView(generic.CreateView):
     model = AmazonProfile
     form_class = dashboard_forms.AmazonProfileCreateForm
     success_url = reverse_lazy('mws-dashboard:profile-list')
-
 
     def get_form_kwargs(self):
         kwargs = super(AmazonProfileCreateView, self).get_form_kwargs()
