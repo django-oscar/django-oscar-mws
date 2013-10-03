@@ -23,6 +23,7 @@ def get_connection(merchant_id, aws_access_key_id, aws_secret_access_key,
         SellerId=merchant_id,
         **kwargs
     )
+    _mws_connections[merchant_id]
     return _mws_connections[merchant_id]
 
 

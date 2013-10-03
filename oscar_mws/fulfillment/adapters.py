@@ -11,10 +11,6 @@ class BaseAdapter(object):
     REQUIRED_FIELDS = []
     OPTIONAL_FIELDS = []
 
-    def __init__(self, merchant_id, marketplace_id=None):
-        self.merchant_id = merchant_id
-        self.marketplace = marketplace_id
-
     def get_required_fields(self, **kwargs):
         required_fields = {}
         for fname in self.REQUIRED_FIELDS:
@@ -42,16 +38,16 @@ class OrderLineAdapter(BaseAdapter):
         'SellerSKU',
         'SellerFulfillmentOrderItemId',
         'Quantity',
-        'PerUnitDeclaredValue',
     ]
     OPTIONAL_FIELDS = [
         'DisplayableComment',
         'FulfillmentNetworkSKU',
         'OrderItemDisposition',
+        'PerUnitDeclaredValue',
     ]
 
-    def __init__(self, line, merchant_id, marketplace_id=None):
-        super(OrderLineAdapter, self).__init__(merchant_id, marketplace_id)
+    def __init__(self, line):
+        super(OrderLineAdapter, self).__init__()
         self.line = line
 
     def get_seller_sku(self, **kwargs):
@@ -93,8 +89,8 @@ class OrderAdapter(BaseAdapter):
     ]
     line_adapter_class = OrderLineAdapter
 
-    def __init__(self, order, merchant_id, marketplace_id=None):
-        super(OrderAdapter, self).__init__(merchant_id, marketplace_id)
+    def __init__(self, order):
+        super(OrderAdapter, self).__init__()
         custom_adapter = getattr(settings, 'MWS_ORDER_LINE_ADAPTER', None)
         if custom_adapter:
             self.line_adapter_class = load_class(custom_adapter)
@@ -132,10 +128,7 @@ class OrderAdapter(BaseAdapter):
         try:
             adapter = self.line_adapters[line.id]
         except KeyError:
-            adapter = self.line_adapter_class(
-                line=line,
-                merchant_id=self.merchant_id
-            )
+            adapter = self.line_adapter_class(line=line)
             self.line_adapters[line.id] = adapter
         return self.line_adapters[line.id]
 

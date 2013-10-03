@@ -22,3 +22,7 @@ FULFILLMENT_METHODS = (
 FILL_OR_KILL = 'FillOrKill'
 FILL_ALL = 'FillAll'
 FILL_ALL_AVAILABLE = 'FillAllAvailable'
+
+
+class MwsFulfillmentError(BaseException):
+    pass

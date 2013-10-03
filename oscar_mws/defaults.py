@@ -3,6 +3,9 @@ from django.utils.translation import ugettext_lazy as _
 # Django ORM field description for seller SKU relative to Product model
 MWS_SELLER_SKU_FIELD = 'stockrecord__partner_sku'
 
+# Callable that returns an appropriate region for a given order and address
+MWS_FULFILLMENT_MERCHANT_FINDER = 'oscar_mws.fulfillment.finders.default_merchant_finder'
+
 MWS_DEFAULT_SHIPPING_SPEED = 'Standard'
 
 MWS_DASHBOARD_NAVIGATION = [

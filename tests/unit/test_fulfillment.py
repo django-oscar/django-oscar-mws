@@ -21,8 +21,7 @@ class TestFulfillmentShipmentCreator(TestCase):
     def setUp(self):
         super(TestFulfillmentShipmentCreator, self).setUp()
         self.merchant = factories.MerchantAccountFactory()
-        self.creator = FulfillmentOrderCreator(merchant=self.merchant)
-        self.creator.mws_connection = mock.Mock()
+        self.creator = FulfillmentOrderCreator()
         self.address = ShippingAddress.objects.create(
             first_name='test',
             last_name='man',
@@ -34,7 +33,6 @@ class TestFulfillmentShipmentCreator(TestCase):
 
     def test_creates_shipments_for_single_address(self):
         order = create_order(shipping_address=self.address)
-
         self.creator.create_fulfillment_order(order)
 
     def test_creates_shipments_for_multiple_addresses(self):
