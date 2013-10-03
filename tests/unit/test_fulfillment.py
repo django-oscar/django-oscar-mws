@@ -12,6 +12,7 @@ from oscar_mws.fulfillment.creator import FulfillmentOrderCreator
 Country = get_model('address', 'Country')
 Basket = get_model('basket', 'Basket')
 ShippingAddress = get_model('order', 'ShippingAddress')
+FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 
 
 class TestFulfillmentShipmentCreator(TestCase):
@@ -21,6 +22,7 @@ class TestFulfillmentShipmentCreator(TestCase):
         super(TestFulfillmentShipmentCreator, self).setUp()
         self.merchant = factories.MerchantAccountFactory()
         self.creator = FulfillmentOrderCreator(merchant=self.merchant)
+        self.creator.mws_connection = mock.Mock()
         self.address = ShippingAddress.objects.create(
             first_name='test',
             last_name='man',
@@ -52,13 +54,15 @@ class TestFulfillmentShipmentCreator(TestCase):
         order.get_fulfillment_addresses = mock.Mock(
             return_value=[self.address, second_address]
         )
-        order.get_lines_for_address = mock.Mock()
-        order.get_lines_for_address.side_effect = [
-            order.lines.all()[0:1],
-            order.lines.all()[1:]
-        ]
+
+        def get_lines_for_address(address):
+            if address == self.address:
+                return order.lines.all()[:1]
+            return order.lines.all()[1:]
+        order.get_lines_for_address = get_lines_for_address
 
         self.creator.create_fulfillment_order(order)
+        self.assertEquals(FulfillmentOrder.objects.count(), 2)
 
 
 class TestUpdatingFulfillmentOrders(mixins.DataLoaderMixin, TestCase):

@@ -70,7 +70,6 @@ class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
         self.assertEquals(packages[0].carrier_code, 'UPS')
 
         shipping_events = ShippingEvent.objects.all()
-        print shipping_events
         self.assertEquals(len(shipping_events), 2)
 
         self.assertItemsEqual(
