@@ -24,7 +24,7 @@ class MwsFeedError(BaseException):
     pass
 
 
-def handle_feed_submission_response(merchant, response):
+def handle_feed_submission_response(merchant, response, feed_xml=None):
     fsinfo = response.SubmitFeedResult.FeedSubmissionInfo
 
     try:
@@ -39,6 +39,8 @@ def handle_feed_submission_response(merchant, response):
             date_submitted=du_parse(fsinfo.SubmittedDate),
             feed_type=fsinfo.FeedType,
         )
+        if feed_xml:
+            submission.feed_xml = feed_xml
 
     submission.merchant = merchant
     submission.processing_status = fsinfo.FeedProcessingStatus
@@ -51,39 +53,30 @@ def handle_feed_submission_response(merchant, response):
     return submission
 
 
-def submit_product_feed(products, merchant=None, marketplaces=None,
-                        dry_run=False):
+def submit_product_feed(products, marketplaces, dry_run=False):
     """
     Generate a product feed for the list of *products* and submit it to
     Amazon. The submission ID returned by them is used to create a
     FeedSubmission to log the progress of the submission as well as the
     products that are handled as part of the submission.
+
+    A list of *marketplaces* is also required that specify the Amazon
+    maketplaces to submit the product(s) to. The marketplaces have to be
+    part of the same merchant account and have to have the same language code
+    specified. If either of these restrictions is violated, the feed will be
+    rejected by Amazon.
     """
-    merchants = None
-    marketplace_ids = []
-    if marketplaces is not None:
-        merchant_ids = set([m.merchant_id for m in marketplaces])
-        marketplace_ids = [m.marketplace_id for m in marketplaces]
-        if len(merchant_ids) > 1:
-            raise MwsFeedError(
-                "Marketplaces of different merchant accounts specified. This "
-                "is invalid, please only use marketplaces for the same seller"
-            )
-
-        merchants = MerchantAccount.objects.filter(
-            id__in=merchant_ids
-        ).distinct()
-
-    if merchant:
-        merchants = [merchant]
-
-    if not merchants:
+    merchant_ids = set([m.merchant_id for m in marketplaces])
+    marketplace_ids = [m.marketplace_id for m in marketplaces]
+    if len(merchant_ids) > 1:
         raise MwsFeedError(
-            "no merchant specified or no merchant found for marketplace"
+            "Marketplaces of different merchant accounts specified. This "
+            "is invalid, please only use marketplaces for the same seller"
         )
 
     submissions = []
-    for merchant in merchants:
+    for marketplace in marketplaces:
+        merchant = marketplace.merchant
         logger.info(
             "Updating {0} products for seller ID {1}".format(
                 len(products),
@@ -109,7 +102,8 @@ def submit_product_feed(products, merchant=None, marketplaces=None,
             content_type='text/xml',
             MarketplaceIdList=marketplace_ids or merchant.marketplace_ids
         )
-        submission = handle_feed_submission_response(merchant, response)
+        submission = handle_feed_submission_response(merchant, response,
+                                                     feed_xml=xml_data)
         for product in products:
             submission.submitted_products.add(product)
         submissions.append(submission)
@@ -259,7 +253,7 @@ def process_submission_results(submission):
             feed_result.description = result.find('ResultDescription').text
             feed_result.type = result.find('ResultCode').text
 
-            if result.find('AdditionalInfo/SKU'):
+            if result.find('AdditionalInfo/SKU') is not None:
                 product_sku = result.find('AdditionalInfo/SKU').text
                 try:
                     product = Product.objects.get(
@@ -333,4 +327,5 @@ def switch_product_fulfillment(marketplace, products, dry_run=False):
         FeedType=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
         content_type='text/xml',
     )
-    return handle_feed_submission_response(marketplace.merchant, response)
+    return handle_feed_submission_response(marketplace.merchant, response,
+                                           feed_xml=xml_data)

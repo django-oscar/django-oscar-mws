@@ -66,23 +66,30 @@ class ProductListView(FormMixin, generic.ListView):
 
     def handle_submit_product_feed(self, marketplace, form):
         try:
-            submission = feeds_gw.submit_product_feed(
-                marketplace.merchant,
-                Product.objects.filter(
+            submissions = feeds_gw.submit_product_feed(
+                products=Product.objects.filter(
                     Q(amazon_profile=None) | Q(amazon_profile__asin=u'')
                 ),
+                marketplaces=[marketplace],
             )
         except feeds_gw.MwsFeedError:
             messages.info(self.request, "Submitting feed failed")
         else:
+            submission_links = []
+            for submission in submissions:
+                submission_links.append(
+                    "<a href='{0}'>{1}</a>".format(
+                        reverse(
+                            'mws-dashboard:submission-detail',
+                            kwargs={'submission_id': submission.submission_id}
+                        ),
+                        submission.submission_id
+                    )
+                )
             messages.info(
                 self.request,
-                "Submitted succesfully as ID <a href='{0}'>{1}</a>".format(
-                    reverse(
-                        'mws-dashboard:submission-detail',
-                        kwargs={'submission_id': submission.submission_id}
-                    ),
-                    submission.submission_id
+                "Submitted succesfully as ID(s) {0}".format(
+                    ', '.join(submission_links)
                 ),
                 extra_tags='safe',
             )

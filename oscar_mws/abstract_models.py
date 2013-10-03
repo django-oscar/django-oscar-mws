@@ -130,6 +130,7 @@ class AbstractFeedSubmission(models.Model):
         verbose_name=_("Submitted products"),
         related_name="feed_submissions",
     )
+    feed_xml = models.TextField(_("Submitted XML feed"), null=True, blank=True)
 
     def save(self, **kwargs):
         self.date_updated = tz_now()

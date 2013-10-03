@@ -8,7 +8,6 @@ logger = logging.getLogger('oscar_mws')
 
 
 def submit_order_to_mws(order, user, **kwargs):
-    print "SUBMITTING ORDER"
     if kwargs.get('raw', False):
         return
 

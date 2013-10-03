@@ -1,5 +1,6 @@
 ﻿{% extends "oscar/dashboard/layout.html" %}
 {% load i18n %}
+{% load mws_tags %}
 {% load url from future %}
 
 {% block title %}
@@ -94,5 +95,21 @@
         </table>
         {% endif %}
     {% endwith %}
+
+    <div class="table-header">
+        <h3><i class="icon-file icon-large"></i>{% trans "Feed XML" %}</h3>
+    </div>
+
+    <div class="well">
+        <div class="row-fluid">
+            <div class="span12">
+                {% if submission.feed_xml %}
+                   <pre><code>{{ submission.feed_xml|prettify_xml }}</code></pre>
+                {% else %}
+                    {% trans "The submitted XML feed is not available." %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
 {% endblock %}
 

@@ -29,8 +29,6 @@ def get_connection(merchant_id, aws_access_key_id, aws_secret_access_key,
 def get_merchant_connection(merchant_id):
     global _mws_connections
 
-    print merchant_id, _mws_connections
-
     if merchant_id in _mws_connections:
         return _mws_connections[merchant_id]
 
