@@ -35,6 +35,7 @@ def pytest_configure():
         STATICFILES_FINDERS=(
             'django.contrib.staticfiles.finders.FileSystemFinder',
             'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+            'compressor.finders.CompressorFinder',
         ),
         TEMPLATE_LOADERS=(
             'django.template.loaders.filesystem.Loader',

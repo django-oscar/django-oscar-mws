@@ -60,7 +60,11 @@
                 {% for product in product_list %}
                     {% with marketplace_list=product.amazon_profile.marketplaces.all %}
                     <tr>
-                        <td><input type="checkbox" name="selected_profiles" value="{{ product.amazon_profile.id }}"></input></td>
+                        <td>
+                            {% if product.amazon_profile %}
+                                <input type="checkbox" name="selected_profiles" value="{{ product.amazon_profile.id }}" />
+                            {% endif %}
+                        </td>
                         <td>{{ product.amazon_profile.sku|default:"-" }}</td>
                         <td>{{ product.amazon_profile.asin|default:"-" }}</td>
                         <td>
