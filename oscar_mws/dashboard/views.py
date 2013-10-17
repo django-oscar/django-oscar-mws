@@ -191,7 +191,7 @@ class AmazonProfileCreateView(generic.CreateView):
     def get_form_kwargs(self):
         kwargs = super(AmazonProfileCreateView, self).get_form_kwargs()
         try:
-            product = Product.objects.get(uuid=self.kwargs.get('uuid'))
+            product = Product.objects.get(id=self.kwargs.get('id'))
         except Product.DoesNotExist:
             product = None
         kwargs.update(product=product)
