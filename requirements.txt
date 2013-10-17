@@ -2,17 +2,11 @@
 Werkzeug>=0.6.2
 django-debug-toolbar>=0.9.4
 django-extensions>=0.9
-bumpversion
-
-# python shell & debugger
-pudb>=2013.3.4
-bpython>=0.12
 
 # Testing dependencies
 mock>=1.0.1
 WebTest>=1.3.4
 django-webtest>=1.5.3
-tox>=1.4.2
 factory-boy==2.1.1
 httpretty==0.6.3
 pytest==2.3.5
@@ -20,7 +14,6 @@ pytest-cache==1.0
 pytest-cov==1.6
 pytest-django==2.3.0
 pytest-pep8==1.0.4
-pytest-sugar==0.2.1
 django-oscar-testsupport==0.4
 
 # Code style and coverage
@@ -29,9 +22,8 @@ coverage>=3.5.1
 pyflakes>=0.5.0
 coveralls>=0.1.1,<0.2
 
-# documentation
-Sphinx>=1.1.3
-docutils>=0.8.1
+# we need this to make sure that we test against Oscar 0.6
+-e git+https://github.com/tangentlabs/django-oscar.git#egg=django-oscar
 
 # Others
 Whoosh>=2.4.1
