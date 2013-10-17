@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='django-fancypages',
-    version=":versiontools:oscar_mws:",
+    version="0.1.0",
     url='https://github.com/tangentlabs/django-oscar-mws',
     author="Sebastian Vetter",
     author_email="sebastian.vetter@tangentsnowball.com.au",
@@ -23,9 +23,6 @@ setup(
         'lxml>=3.2.3',
         'beautifulsoup>=3.2.1',
         'python-dateutil>=2.1',
-    ],
-    setup_requires=[
-        'versiontools>=1.8',
     ],
     # See http://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
