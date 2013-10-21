@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='django-fancypages',
+    name='django-oscar-mws',
     version="0.1.0",
     url='https://github.com/tangentlabs/django-oscar-mws',
     author="Sebastian Vetter",
@@ -18,7 +18,7 @@ setup(
     packages=find_packages(exclude=["sandbox*", "tests*"]),
     include_package_data=True,
     install_requires=[
-        'django-oscar>=0.5',
+        'django-oscar',
         'boto>=2.10.0',
         'lxml>=3.2.3',
         'beautifulsoup>=3.2.1',
