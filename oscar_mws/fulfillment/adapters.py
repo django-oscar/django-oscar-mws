@@ -1,7 +1,5 @@
 from django.conf import settings
 
-from boto.mws.response import ResponseElement
-
 from ..utils import load_class, convert_camel_case
 
 MWS_DEFAULT_SHIPPING_SPEED = getattr(settings, 'MWS_DEFAULT_SHIPPING_SPEED')

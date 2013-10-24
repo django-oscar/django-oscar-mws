@@ -5,23 +5,23 @@
 # Based on http://code.google.com/p/amazon-mws-python
 #
 
-import urllib
-import hashlib
-import hmac
-import base64
 import re
+import hmac
+import urllib
+import base64
+import hashlib
+import xmltodict
 
 from time import strftime, gmtime
+from collections import OrderedDict
 
 try:
     from xml.etree.ElementTree import ParseError as XMLError
 except ImportError:
     from xml.parsers.expat import ExpatError as XMLError
 
-from . import utils
 from requests import request
 from requests.exceptions import HTTPError
-
 
 
 class MWSError(Exception):
@@ -57,11 +57,30 @@ def remove_namespace(xml):
     return regex.sub('', xml)
 
 
+class MWSObject(OrderedDict):
+
+    def get_list(self, name):
+        value = self.get(name)
+        if not value:
+            return []
+        if isinstance(value, (list, tuple)):
+            return value
+        return [value]
+
+    def __getattribute__(self, name):
+        try:
+            value = self[name]
+        except KeyError:
+            value = super(MWSObject, self).__getattribute__(name)
+        return value
+
+
 class DictWrapper(object):
     def __init__(self, xml, rootkey=None):
         self.original = xml
         self._rootkey = rootkey
-        self._mydict = utils.xml2dict().fromstring(remove_namespace(xml))
+
+        self._mydict = xmltodict.parse(xml, dict_constructor=MWSObject)
         self._response_dict = self._mydict.get(self._mydict.keys()[0],
                                                self._mydict)
 
@@ -142,7 +161,7 @@ class MWS(object):
             'SignatureMethod': 'HmacSHA256',
         }
         params.update(extra_data)
-        request_description = '&'.join(['%s=%s' % (k, urllib.quote(params[k], safe='-_.~').encode('utf-8')) for k in sorted(params)])
+        request_description = '&'.join(['%s=%s' % (k, urllib.quote(unicode(params[k]), safe='-_.~').encode('utf-8')) for k in sorted(params)])
         signature = self.calc_signature(method, request_description)
         url = '%s%s?%s&Signature=%s' % (self.domain, self.uri, request_description, urllib.quote(signature))
         headers = {'User-Agent': 'python-amazon-mws/0.0.1 (Language=Python)'}
@@ -274,7 +293,7 @@ class Feeds(MWS):
         return self.make_request(data)
 
     def get_feed_submission_result(self, feedid):
-        data = dict(Action='GetFeedSubmissionResult', FeedSubmissionId=feedid)
+        data = dict(Action='GetFeedSubmission', FeedSubmissionId=feedid)
         return self.make_request(data)
 
 

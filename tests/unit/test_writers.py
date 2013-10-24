@@ -1,6 +1,9 @@
 import mock
 
-from lxml import etree
+try:
+    from lxml import etree
+except:
+    from xml import etree
 
 from django.test import TestCase
 from django.db.models import get_model

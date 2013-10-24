@@ -53,8 +53,11 @@ class TestUpdatingSubmissionList(mixins.DataLoaderMixin, TestCase):
     def test_adds_feed_submissions_for_received_feeds(self):
         xml_data = self.load_data('get_feed_submission_list_response.xml')
 
+        from xmltodict import parse
+        print parse(xml_data)
+
         httpretty.register_uri(
-            httpretty.POST,
+            httpretty.GET,
             'https://mws.amazonservices.com/',
             body=xml_data,
         )
@@ -73,7 +76,7 @@ class TestProcessingSubmissionFeedResults(mixins.DataLoaderMixin, TestCase):
     def test_generates_submission_report_correctly(self):
         xml_data = self.load_data('get_feed_submission_results_response.xml')
         httpretty.register_uri(
-            httpretty.POST,
+            httpretty.GET,
             'https://mws.amazonservices.com/',
             responses=[httpretty.Response(
                 xml_data,

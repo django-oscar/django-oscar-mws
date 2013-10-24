@@ -19,8 +19,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'django-oscar',
-        'boto>=2.10.0',
-        'lxml>=3.2.3',
+        'xmltodict',
         'beautifulsoup>=3.2.1',
         'python-dateutil>=2.1',
     ],

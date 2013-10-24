@@ -3,10 +3,9 @@ from django.db.models import get_model
 from django.utils.translation import ugettext_lazy as _
 from django.core.exceptions import ImproperlyConfigured
 
-from boto.mws.exception import ResponseError
-
-from .adapters import OrderAdapter
+from ..api import MWSError
 from ..utils import load_class
+from .adapters import OrderAdapter
 from ..connection import get_merchant_connection
 
 MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
@@ -69,7 +68,7 @@ class FulfillmentOrderCreator(object):
                     connection.create_fulfillment_order(
                         **adapter.get_fields(address=address)
                     )
-                except ResponseError as exc:
+                except MWSError as exc:
                     self.errors[fulfillment_id] = exc.message
                     continue
 

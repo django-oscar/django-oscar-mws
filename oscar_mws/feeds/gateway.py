@@ -25,7 +25,7 @@ class MwsFeedError(BaseException):
 
 
 def handle_feed_submission_response(merchant, response, feed_xml=None):
-    fsinfo = response.SubmitFeedResult.FeedSubmissionInfo
+    fsinfo = response.FeedSubmissionInfo
 
     try:
         submission = FeedSubmission.objects.get(
@@ -95,14 +95,13 @@ def submit_product_feed(products, marketplaces, dry_run=False):
             print xml_data
             return
 
-        mws_connection = get_merchant_connection(merchant.seller_id)
-        response = mws_connection.submit_feed(
-            FeedContent=xml_data,
-            FeedType=am.TYPE_POST_PRODUCT_DATA,
-            content_type='text/xml',
-            MarketplaceIdList=marketplace_ids or merchant.marketplace_ids
+        feeds_api = get_merchant_connection(merchant.seller_id).feeds
+        response = feeds_api.submit_feed(
+            feed=xml_data,
+            feed_type=am.TYPE_POST_PRODUCT_DATA,
+            marketplaceids=marketplace_ids or merchant.marketplace_ids
         )
-        submission = handle_feed_submission_response(merchant, response,
+        submission = handle_feed_submission_response(merchant, response.parsed,
                                                      feed_xml=xml_data)
         for product in products:
             submission.submitted_products.add(product)
@@ -111,11 +110,12 @@ def submit_product_feed(products, marketplaces, dry_run=False):
 
 
 def update_feed_submission(submission):
-    connection = get_merchant_connection(submission.merchant.seller_id)
-    response = connection.get_feed_submission_list(
-        FeedSubmissionIdList=[submission.submission_id]
-    )
-    for result in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
+    feeds_api = get_merchant_connection(submission.merchant.seller_id).feeds
+    response = feeds_api.get_feed_submission_list(
+        feedids=[submission.submission_id]
+    ).parsed
+
+    for result in response.get_list('FeedSubmissionInfo'):
         submission.processing_status = result.FeedProcessingStatus
         submission.save()
     return submission
@@ -134,22 +134,17 @@ def update_feed_submissions(merchant):
         processing_status__in=[am.STATUS_DONE, am.STATUS_CANCELLED],
         merchant=merchant
     )
+    feeds_api = get_merchant_connection(merchant.seller_id).feeds
+    response = feeds_api.get_feed_submission_list(
+        feedids=[s.submission_id for s in submissions] or None
+    ).parsed
 
-    api_kwargs = {}
-    if submissions:
-        api_kwargs['FeedSubmissionIdList'] = [
-            s.submission_id for s in submissions
-        ]
-
-    connection = get_merchant_connection(merchant.seller_id)
-    response = connection.get_feed_submission_list(**api_kwargs)
-
-    if response.GetFeedSubmissionListResult.HasNext:
+    if response.HasNext:
         #TODO: need to handle this flag
-        response.GetFeedSubmissionListResult.NextToken
+        response.NextToken
 
     updated_feeds = []
-    for result in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
+    for result in response.get_list('FeedSubmissionInfo'):
         try:
             submission = FeedSubmission.objects.get(
                 submission_id=result.FeedSubmissionId,
@@ -179,8 +174,8 @@ def list_submitted_feeds(merchants=None):
 
     feed_info = {}
     for merchant in merchants:
-        mws_connection = get_merchant_connection(merchant.seller_id)
-        response = mws_connection.get_feed_submission_list()
+        feeds_api = get_merchant_connection(merchant.seller_id).feeds
+        response = feeds_api.get_feed_submission_list()
 
         feed_info[merchant.seller_id] = []
         for feed in response.GetFeedSubmissionListResult.FeedSubmissionInfo:
@@ -198,7 +193,6 @@ def list_submitted_feeds(merchants=None):
                     feed.get('CompletedProcessingDate') or ''
                 ),
             })
-
     return feed_info
 
 
@@ -214,12 +208,12 @@ def process_submission_results(submission):
     logger.info(
         'Requesting submission result for {0}'.format(submission.submission_id)
     )
-    connection = get_merchant_connection(submission.merchant.seller_id)
-    response = connection.get_feed_submission_result(
-        FeedSubmissionId=submission.submission_id
+    feeds_api = get_merchant_connection(submission.merchant.seller_id).feeds
+    response = feeds_api.get_feed_submission_result(
+        feedid=submission.submission_id
     )
 
-    doc = etree.parse(StringIO(response))
+    raise Exception(response._response_dict)
     reports = []
     for report in doc.xpath('.//Message/ProcessingReport'):
         submission_id = int(report.find('DocumentTransactionID').text)
@@ -269,7 +263,7 @@ def process_submission_results(submission):
 
 
 def update_product_identifiers(merchant, products):
-    connection = get_merchant_connection(merchant.seller_id)
+    prods_api = get_merchant_connection(merchant.seller_id).products
     for product in products:
         marketplace_ids = [
             m.marketplace_id for m in product.amazon_profile.marketplaces.all()
@@ -278,10 +272,10 @@ def update_product_identifiers(merchant, products):
             marketplace_ids = [None]
 
         for marketplace_id in marketplace_ids:
-            response = connection.get_matching_product_for_id(
-                MarketplaceId=marketplace_id,
-                IdType="SellerSKU",
-                IdList=[product.amazon_profile.sku],
+            response = prods_api.get_matching_product_for_id(
+                marketplaceid=marketplace_id,
+                type="SellerSKU",
+                id=[product.amazon_profile.sku],
             )
 
             result = response.GetMatchingProductForIdResult
@@ -321,12 +315,11 @@ def switch_product_fulfillment(marketplace, products, dry_run=False):
         print xml_data
         return
 
-    mws_connection = get_merchant_connection(marketplace.merchant.seller_id)
-    response = mws_connection.submit_feed(
-        FeedContent=xml_data,
-        FeedType=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
-        content_type='text/xml',
-        MarketplaceId=marketplace.marketplace_id
+    feeds_api = get_merchant_connection(marketplace.merchant.seller_id).feeds
+    response = feeds_api.submit_feed(
+        feed=xml_data,
+        feed_type=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
+        marketplaceids=marketplace.marketplace_id
     )
-    return handle_feed_submission_response(marketplace.merchant, response,
-                                           feed_xml=xml_data)
+    return handle_feed_submission_response(marketplace.merchant,
+                                           response.parsed, feed_xml=xml_data)
