@@ -52,7 +52,7 @@ class Connection(object):
 
     def get_api_class(self, name):
         try:
-            conn = self.API_CLASSES['feeds']
+            conn = self.API_CLASSES[name]
         except KeyError:
             raise ImproperlyConfigured(
                 'API {0} is not a valid MWS API class'.format(name)
@@ -67,6 +67,12 @@ class Connection(object):
     @property
     def outbound(self):
         conn = self.get_api_class('outbound')
+        return conn(**self.get_connection_kwargs())
+
+    @property
+    def sellers(self):
+        conn = self.get_api_class('sellers')
+        print self.get_connection_kwargs()
         return conn(**self.get_connection_kwargs())
 
     @property

@@ -1,7 +1,5 @@
 import logging
 
-from lxml import etree
-from cStringIO import StringIO
 from dateutil.parser import parse as du_parse
 
 from django.db.models import get_model
@@ -211,12 +209,12 @@ def process_submission_results(submission):
     feeds_api = get_merchant_connection(submission.merchant.seller_id).feeds
     response = feeds_api.get_feed_submission_result(
         feedid=submission.submission_id
-    )
+    ).parsed
 
-    raise Exception(response._response_dict)
     reports = []
-    for report in doc.xpath('.//Message/ProcessingReport'):
-        submission_id = int(report.find('DocumentTransactionID').text)
+    for message in response.get_list('Message'):
+        report = message.ProcessingReport
+        submission_id = unicode(report.DocumentTransactionID)
 
         if unicode(submission_id) != unicode(submission.submission_id):
             logger.warning(
@@ -230,25 +228,25 @@ def process_submission_results(submission):
         except FeedReport.DoesNotExist:
             feed_report = FeedReport(submission=submission)
 
-        feed_report.status_code = report.find('StatusCode').text
+        feed_report.status_code = report.StatusCode
 
-        summary = report.find('ProcessingSummary')
-        feed_report.processed = int(summary.find('MessagesProcessed').text)
-        feed_report.successful = int(summary.find('MessagesSuccessful').text)
-        feed_report.errors = int(summary.find('MessagesWithError').text)
-        feed_report.warnings = int(summary.find('MessagesWithWarning').text)
+        summary = report.ProcessingSummary
+        feed_report.processed = int(summary.MessagesProcessed)
+        feed_report.successful = int(summary.MessagesSuccessful)
+        feed_report.errors = int(summary.MessagesWithError)
+        feed_report.warnings = int(summary.MessagesWithWarning)
         feed_report.save()
 
         reports.append(feed_report)
 
-        for result in report.findall('Result'):
+        for result in report.get_list('Result'):
             feed_result = FeedResult(feed_report=feed_report)
-            feed_result.message_code = result.find('ResultMessageCode').text
-            feed_result.description = result.find('ResultDescription').text
-            feed_result.type = result.find('ResultCode').text
+            feed_result.message_code = result.ResultMessageCode
+            feed_result.description = result.ResultDescription
+            feed_result.type = result.ResultCode
 
-            if result.find('AdditionalInfo/SKU') is not None:
-                product_sku = result.find('AdditionalInfo/SKU').text
+            product_sku = result.get('AdditionalInfo', {}).get('SKU')
+            if product_sku:
                 try:
                     product = Product.objects.get(
                         product__stockrecord__partner_sku=product_sku

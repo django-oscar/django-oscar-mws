@@ -86,10 +86,11 @@ class DictWrapper(object):
 
     @property
     def parsed(self):
-        if self._rootkey:
-            return self._response_dict.get(self._rootkey)
-        else:
-            return self._response_dict
+        try:
+            parsed = self._response_dict[self._rootkey]
+        except KeyError:
+            parsed = self._response_dict
+        return parsed
 
 
 class DataWrapper(object):
@@ -182,7 +183,8 @@ class MWS(object):
             # I do not check the headers to decide which content structure to server simply because sometimes
             # Amazon's MWS API returns XML error responses with "text/plain" as the Content-Type.
             try:
-                parsed_response = DictWrapper(data, extra_data.get("Action") + "Result")
+                parsed_response = DictWrapper(
+                    data, extra_data.get("Action") + "Result")
             except XMLError:
                 parsed_response = DataWrapper(data, response.headers)
 
