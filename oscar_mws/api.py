@@ -152,7 +152,6 @@ class MWS(object):
         # Remove all keys with an empty value because
         # Amazon's MWS does not allow such a thing.
         extra_data = remove_empty(extra_data)
-
         params = {
             'AWSAccessKeyId': self.access_key,
             self.ACCOUNT_TYPE: self.account_id,
@@ -236,6 +235,18 @@ class MWS(object):
                 param = "%s." % param
             for num, value in enumerate(values):
                 params['%s%d' % (param, (num + 1))] = value
+        return params
+
+    def dict_param(self, param, dct):
+        params = {}
+        for key, value in dct.iteritems():
+            if value is None:
+                continue
+            new_key = "{0}.{1}".format(param, key)
+            if isinstance(value, dict):
+                params.update(self.dict_param(new_key, value))
+            else:
+                params[new_key] = value
         return params
 
 
@@ -532,7 +543,6 @@ class Sellers(MWS):
             a list of participations that include seller-specific information in that marketplace.
             The operation returns only those marketplaces where the seller's account is in an active state.
         """
-
         data = dict(Action='ListMarketplaceParticipations')
         return self.make_request(data)
 
@@ -580,7 +590,51 @@ class Inventory(MWS):
 class OutboundShipments(MWS):
     URI = "/FulfillmentOutboundShipment/2010-10-01"
     VERSION = "2010-10-01"
-    # To be completed
+
+    def get_fulfillment_preview(self, address, items,
+                                shipping_speed_categories=None):
+        #data = dict(Action="GetFulfillmentPreview")
+        raise NotImplementedError()
+
+    def create_fulfillment_order(self, order_id, items, destination_address,
+                                 displayable_order_id=None, order_date=None,
+                                 shipping_speed=None, fulfillment_policy=None,
+                                 fulfillment_method=None, comments=None,
+                                 notification_emails=None):
+        data = dict(
+            Action="CreateFulfillmentOrder",
+            SellerFulfillmentOrderId=order_id,
+            DisplayableOrderDateTime=order_date,
+            DisplayableOrderId=displayable_order_id,
+            ShippingSpeedCategory=shipping_speed,
+            DisplayableOrderComment=comments,
+        )
+        for k, v in self.enumerate_param('Items.member', items).iteritems():
+            data.update(self.dict_param(k, v))
+        data.update(self.dict_param('DestinationAddress', destination_address))
+        return self.make_request(data, 'POST')
+
+    def get_fulfillment_order(self, order_id):
+        data = dict(Action="GetFulfillmentOrder",
+                    SellerFulfillmentOrderId=order_id)
+        return self.make_request(data, "GET")
+
+    def list_all_fulfillment_orders(self, query_start=None, query_end=None,
+                                    order_id=None):
+        #data = dict(Action="ListAllFulfillmentOrders")
+        raise NotImplementedError()
+
+    def list_all_fulfillment_orders_by_next_token(self, next_token):
+        #data = dict(Action="ListAllFulfillmentOrdersByNextToken")
+        raise NotImplementedError()
+
+    def get_package_tracking_details(self, package_number):
+        #data = dict(Action="GetPackageTrackingDetails")
+        raise NotImplementedError()
+
+    def cancel_fulfillment_order(self, order_id):
+        #data = dict(Action="CancelFulfillmentOrder")
+        raise NotImplementedError()
 
 
 class Recommendations(MWS):

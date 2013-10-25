@@ -63,10 +63,22 @@ class FulfillmentOrderCreator(object):
                 fulfillment_order = FulfillmentOrder(
                     fulfillment_id=fulfillment_id,
                 )
-                connection = get_merchant_connection(merchant.seller_id)
+
+                outbound_api = get_merchant_connection(
+                    merchant_id=merchant.seller_id
+                ).outbound
                 try:
-                    connection.create_fulfillment_order(
-                        **adapter.get_fields(address=address)
+                    order_kw = adapter.get_fields(address=address)
+                    outbound_api.create_fulfillment_order(
+                        order_id=order_kw.get('SellerFulfillmentOrderId'),
+                        order_date=order_kw.get('DisplayableOrderDateTime'),
+                        destination_address=order_kw.get('DestinationAddress'),
+                        displayable_order_id=order_kw.get(
+                            'DisplayableOrderId'
+                        ),
+                        items=order_kw.get('Items'),
+                        shipping_speed=order_kw.get('ShippingSpeedCategory'),
+                        comments=order_kw.get('DisplayableOrderComment'),
                     )
                 except MWSError as exc:
                     self.errors[fulfillment_id] = exc.message

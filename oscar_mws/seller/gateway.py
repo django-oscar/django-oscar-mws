@@ -6,12 +6,11 @@ AmazonMarketplace = get_model('oscar_mws', 'AmazonMarketplace')
 
 
 def update_marketplaces(merchant):
-    mws_conn = get_merchant_connection(merchant.seller_id)
-    response = mws_conn.list_marketplace_participations()
+    sellers_api = get_merchant_connection(merchant.seller_id).sellers
+    response = sellers_api.list_marketplace_participations().parsed
 
-    mp_list = response.ListMarketplaceParticipationsResult.ListMarketplaces
     marketplaces = []
-    for rsp_marketplace in mp_list.Marketplace:
+    for rsp_marketplace in response.ListMarketplaces.get_list('Marketplace'):
         try:
             marketplace = AmazonMarketplace.objects.get(
                 marketplace_id=rsp_marketplace.MarketplaceId,

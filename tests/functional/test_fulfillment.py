@@ -25,7 +25,7 @@ class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
     def test_parses_the_response_correctly(self):
         xml_data = self.load_data('get_fulfillment_order_response.xml')
         httpretty.register_uri(
-            httpretty.POST,
+            httpretty.GET,
             'https://mws.amazonservices.com/FulfillmentOutboundShipment/2010-10-01',
             body=xml_data,
         )

@@ -1,4 +1,4 @@
-import mock
+import httpretty
 
 from django.test import TestCase
 
@@ -8,18 +8,14 @@ from oscar_mws.test import mixins, factories
 
 class TestMarketplaces(mixins.DataLoaderMixin, TestCase):
 
-    def setUp(self):
-        super(TestMarketplaces, self).setUp()
-
+    @httpretty.activate
     def test_can_be_updated_from_mws(self):
-        from boto.connection import AWSQueryConnection
-
         xml = self.load_data('list_marketplace_participations_response.xml')
-        response = mock.Mock()
-        response.read = mock.Mock(return_value=xml)
-        response.status = 200
-
-        AWSQueryConnection._mexe = mock.Mock(return_value=response)
+        httpretty.register_uri(
+            httpretty.GET,
+            'https://mws.amazonservices.com/Sellers/2011-07-01',
+            body=xml,
+        )
 
         self.merchant = factories.MerchantAccountFactory(
             seller_id='ASLLRIDHERE1J56'

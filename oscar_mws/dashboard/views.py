@@ -9,8 +9,7 @@ from django.views.generic.edit import FormMixin
 from django.utils.translation import ugettext_lazy as _
 from django.core.urlresolvers import reverse, reverse_lazy
 
-from boto.mws.exception import InvalidParameterValue
-
+from ..api import MWSError
 from ..feeds import gateway as feeds_gw
 from . import forms as dashboard_forms
 from ..seller.gateway import update_marketplaces
@@ -140,7 +139,7 @@ class ProductListView(FormMixin, generic.ListView):
                 marketplace.merchant,
                 products,
             )
-        except InvalidParameterValue as exc:
+        except MWSError as exc:
             messages.error(
                 self.request,
                 "An error occurred retrieving product data from "

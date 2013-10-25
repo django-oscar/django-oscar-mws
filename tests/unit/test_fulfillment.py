@@ -15,7 +15,7 @@ ShippingAddress = get_model('order', 'ShippingAddress')
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 
 
-class TestFulfillmentShipmentCreator(TestCase):
+class TestFulfillmentShipmentCreator(mixins.DataLoaderMixin, TestCase):
     fixtures = ['countries']
 
     def setUp(self):
@@ -27,23 +27,38 @@ class TestFulfillmentShipmentCreator(TestCase):
             last_name='man',
             line1="123 Imanginary Ave",
             line4="Funky Town",
+            state="CA",
             postcode="56789",
             country=Country.objects.all()[0],
         )
 
+    @httpretty.activate
     def test_creates_shipments_for_single_address(self):
+        httpretty.register_uri(
+            httpretty.POST,
+            'https://mws.amazonservices.com/FulfillmentOutboundShipment/2010-10-01',
+            body=self.load_data('create_fulfillment_order_response.xml'),
+        )
         order = create_order(shipping_address=self.address)
         self.creator.create_fulfillment_order(order)
 
+    @httpretty.activate
     def test_creates_shipments_for_multiple_addresses(self):
         basket = Basket.open.create()
         basket.add_product(create_product())
         basket.add_product(create_product())
 
+        httpretty.register_uri(
+            httpretty.POST,
+            'https://mws.amazonservices.com/FulfillmentOutboundShipment/2010-10-01',
+            body=self.load_data('create_fulfillment_order_response.xml'),
+        )
+
         second_address = ShippingAddress.objects.create(
             first_name="test man's friend",
             line1="1 Random Way",
             line4="Spooky Village",
+            state="RI",
             postcode="56789",
             country=Country.objects.all()[0],
         )

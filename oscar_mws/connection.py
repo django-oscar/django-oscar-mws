@@ -72,7 +72,6 @@ class Connection(object):
     @property
     def sellers(self):
         conn = self.get_api_class('sellers')
-        print self.get_connection_kwargs()
         return conn(**self.get_connection_kwargs())
 
     @property

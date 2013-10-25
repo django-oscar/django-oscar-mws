@@ -2,10 +2,9 @@ import logging
 
 from dateutil import parser as du_parser
 
-from boto.mws.exception import ResponseError
-
 from django.db.models import get_model
 
+from ..api import MWSObject, MWSError
 from ..connection import get_merchant_connection
 
 logger = logging.getLogger('oscar_mws')
@@ -20,22 +19,22 @@ FulfillmentShipment = get_model('oscar_mws', 'FulfillmentShipment')
 
 
 def update_fulfillment_order(fulfillment_order):
-    mws_connection = get_merchant_connection(
+    outbound_api = get_merchant_connection(
         fulfillment_order.merchant.seller_id
-    )
+    ).outbound
     try:
-        response = mws_connection.get_fulfillment_order(
-            SellerFulfillmentOrderId=fulfillment_order.fulfillment_id,
-        )
-    except ResponseError as exc:
+        response = outbound_api.get_fulfillment_order(
+            order_id=fulfillment_order.fulfillment_id,
+        ).parsed
+    except MWSError as exc:
         logger.error(
             "[{exc.error_code}]: {exc.reason} : {exc.message} (Request ID: "
             "{exc.request_id})".format(exc=exc)
         )
         return
 
-    forder = response.GetFulfillmentOrderResult.FulfillmentOrder
-    assert forder.SellerFulfillmentOrderId == fulfillment_order.fulfillment_id
+    forder = response.FulfillmentOrder
+    #assert response.SellerFulfillmentOrderId == fulfillment_order.fulfillment_id
 
     reported_date = du_parser.parse(forder.StatusUpdatedDateTime)
     if reported_date == fulfillment_order.date_updated:
@@ -44,12 +43,7 @@ def update_fulfillment_order(fulfillment_order):
     fulfillment_order.status = forder.FulfillmentOrderStatus
     fulfillment_order.save()
 
-    fshipments = getattr(
-        response.GetFulfillmentOrderResult.FulfillmentShipment,
-        'member',
-        []
-    )
-    for fshipment in fshipments:
+    for fshipment in response.FulfillmentShipment.get_list('member'):
         try:
             shipment = FulfillmentShipment.objects.get(
                 shipment_id=fshipment.AmazonShipmentId
@@ -91,8 +85,8 @@ def update_fulfillment_order(fulfillment_order):
         )
 
         shipping_note = []
-        packages = getattr(fshipment.FulfillmentShipmentPackage, 'member', [])
-        for fpackage in packages:
+        packages = fshipment.get('FulfillmentShipmentPackage', MWSObject())
+        for fpackage in packages.get_list('member'):
             ShipmentPackage.objects.get_or_create(
                 package_number=fpackage.PackageNumber,
                 tracking_number=fpackage.TrackingNumber,
@@ -109,7 +103,8 @@ def update_fulfillment_order(fulfillment_order):
             shipping_event.notes = "\n".join(shipping_note)
             shipping_event.save()
 
-        for item in getattr(fshipment.FulfillmentShipmentItem, 'member', []):
+        items = fshipment.get('FulfillmentShipmentItem', MWSObject())
+        for item in items.get_list('member'):
             fulfillment_lines = Line.objects.filter(
                 fulfillment_line__order_item_id=item.SellerSKU
             )
@@ -132,7 +127,7 @@ def update_fulfillment_orders(fulfillment_orders):
     for order in fulfillment_orders:
         try:
             processed_orders.append(update_fulfillment_order(order))
-        except ResponseError as exc:
+        except MWSError as exc:
             logger.error(
                 "[{exc.error_code}]: {exc.reason} : {exc.message} "
                 "(Request ID: {exc.request_id})".format(exc=exc)
@@ -149,7 +144,7 @@ def get_all_fulfillment_orders(merchant, query_datetime=None):
         response = get_merchant_connection(
             merchant.seller_id
         ).list_all_fulfillment_orders(**kwargs)
-    except ResponseError as exc:
+    except MWSError as exc:
         logger.error(
             "[{exc.error_code}]: {exc.reason} : {exc.message} "
             "(Request ID: {exc.request_id})".format(exc=exc)

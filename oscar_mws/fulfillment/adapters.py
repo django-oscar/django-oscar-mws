@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from django.conf import settings
 
 from ..utils import load_class, convert_camel_case
@@ -10,14 +12,14 @@ class BaseAdapter(object):
     OPTIONAL_FIELDS = []
 
     def get_required_fields(self, **kwargs):
-        required_fields = {}
+        required_fields = OrderedDict()
         for fname in self.REQUIRED_FIELDS:
             method_name = "get_{0}".format(convert_camel_case(fname))
             required_fields[fname] = getattr(self, method_name)(**kwargs)
         return required_fields
 
     def get_optional_fields(self, **kwargs):
-        optional_fields = {}
+        optional_fields = OrderedDict()
         for fname in self.OPTIONAL_FIELDS:
             method_name = "get_{0}".format(convert_camel_case(fname))
             value = getattr(self, method_name)(**kwargs)
@@ -28,7 +30,7 @@ class BaseAdapter(object):
     def get_fields(self, **kwargs):
         fields = self.get_required_fields(**kwargs)
         fields.update(self.get_optional_fields(**kwargs))
-        return ResponseElement(name=self.__class__, attrs=fields)
+        return fields
 
 
 class OrderLineAdapter(BaseAdapter):
@@ -58,10 +60,10 @@ class OrderLineAdapter(BaseAdapter):
         return self.line.quantity
 
     def get_per_unit_declared_value(self, **kwargs):
-        return ResponseElement(attrs={
-            'CurrencyCode': settings.OSCAR_DEFAULT_CURRENCY,
-            'Value': str(self.line.unit_price_incl_tax),
-        })
+        return OrderedDict(
+            CurrencyCode=settings.OSCAR_DEFAULT_CURRENCY,
+            Value=unicode(self.line.unit_price_incl_tax),
+        )
 
     def get_displayable_comment(self, **kwargs):
         return None
@@ -144,18 +146,15 @@ class OrderAdapter(BaseAdapter):
         return comment
 
     def get_destination_address(self, address, **kwargs):
-        return ResponseElement(
-            name="DestinationAddress",
-            attrs={
-                'Name': address.name,
-                'Line1': address.line1,
-                'Line2': address.line2,
-                'line3': address.line3,
-                'City': address.city,
-                'CountryCode': address.country.iso_3166_1_a2,
-                'StateOrProvinceCode': address.state,
-                'PostalCode': address.postcode,
-            }
+        return OrderedDict(
+            Name=address.name,
+            Line1=address.line1,
+            Line2=address.line2,
+            line3=address.line3,
+            City=address.city,
+            CountryCode=address.country.iso_3166_1_a2,
+            StateOrProvinceCode=address.state,
+            PostalCode=address.postcode,
         )
 
     def get_shipping_speed_category(self, **kwargs):
