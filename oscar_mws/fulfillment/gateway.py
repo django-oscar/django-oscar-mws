@@ -1,5 +1,6 @@
 import logging
 
+from collections import defaultdict
 from dateutil import parser as du_parser
 
 from django.db.models import get_model
@@ -8,6 +9,9 @@ from ..api import MWSObject, MWSError
 from ..connection import get_merchant_connection
 
 logger = logging.getLogger('oscar_mws')
+
+Product = get_model('catalogue', 'Product')
+StockRecord = get_model('partner', 'StockRecord')
 
 Line = get_model('order', 'Line')
 ShippingEvent = get_model('order', 'ShippingEvent')
@@ -164,3 +168,39 @@ def get_all_fulfillment_orders(merchant, query_datetime=None):
         fulfillment_order.status = forder.FulfillmentOrderStatus
         fulfillment_order.save()
     return processed_orders
+
+
+def update_inventory(products):
+    product_values = Product.objects.filter(
+        id__in=[p.id for p in products],
+    ).values_list(
+        'stockrecord__partner_sku',
+        'amazon_profile__marketplaces__merchant__seller_id'
+    )
+    submit_products = defaultdict(set)
+    for sku, seller_id in product_values:
+        if seller_id is None:
+            logger.info(
+                'Product with SKU {} has no seller account'.format(sku)
+            )
+            continue
+        submit_products[seller_id].add(sku)
+
+    for seller_id, skus in submit_products.iteritems():
+        print 'SELLER ID', seller_id
+        inventory_api = get_merchant_connection(seller_id).inventory
+        response = inventory_api.list_inventory_supply(skus=skus).parsed
+
+        for inventory in response.InventorySupplyList.get_list('member'):
+            try:
+                stockrecord = StockRecord.objects.get(
+                    partner_sku=inventory.SellerSKU
+                )
+            except StockRecord.DoesNotExist:
+                logger.error(
+                    "could not find stock record for SKU {}".format(
+                        inventory.SellerSKU
+                    )
+                )
+            stockrecord.num_in_stock = inventory.InStockSupplyQuantity
+            stockrecord.save()

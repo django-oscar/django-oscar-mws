@@ -79,6 +79,11 @@ class Connection(object):
         conn = self.get_api_class('products')
         return conn(**self.get_connection_kwargs())
 
+    @property
+    def inventory(self):
+        conn = self.get_api_class('inventory')
+        return conn(**self.get_connection_kwargs())
+
 
 def get_merchant_connection(merchant_id):
     global _mws_connections
