@@ -270,7 +270,7 @@ class FulfillmentOrderCreateView(generic.FormView):
     model = FulfillmentOrder
     form_class = forms.Form
 
-    default_fulfillment_region = oscar_mws.MWS_MARKETPLACE_US
+    default_fulfillment_region = oscar_mws.MWS_MARKETPLACE_GB
 
     def get_merchant(self, order):
         """
@@ -388,6 +388,12 @@ class MerchantUpdateView(generic.UpdateView):
     model = MerchantAccount
     template_name = 'oscar_mws/dashboard/merchant_update.html'
     success_url = reverse_lazy('mws-dashboard:merchant-list')
+
+
+class MerchantDeleteView(generic.DeleteView):
+    model = MerchantAccount
+    template_name = 'oscar_mws/dashboard/merchant_delete.html'
+    success_url = '/dashboard/mws/merchants/'
 
 
 class MarketplaceUpdateView(generic.View):

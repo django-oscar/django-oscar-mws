@@ -476,7 +476,7 @@ class AbstractAmazonMarketplace(models.Model):
         (oscar_mws.MWS_MARKETPLACE_FR, _("France (EU)")),
         (oscar_mws.MWS_MARKETPLACE_IN, _("India (EU)")),
         (oscar_mws.MWS_MARKETPLACE_IT, _("Italy (EU)")),
-        (oscar_mws.MWS_MARKETPLACE_UK, _("United Kingdom (EU)")),
+        (oscar_mws.MWS_MARKETPLACE_GB, _("Great Britain (EU)")),
         (oscar_mws.MWS_MARKETPLACE_JP, _("Japan (JP)")),
         (oscar_mws.MWS_MARKETPLACE_CN, _("China (CN)")),
     )

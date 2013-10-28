@@ -16,6 +16,7 @@ class OscarMwsDashboardApplication(Application):
     merchant_list_view = views.MerchantListView
     merchant_create_view = views.MerchantCreateView
     merchant_update_view = views.MerchantUpdateView
+    merchant_delete_view = views.MerchantDeleteView
     marketplace_update_view = views.MarketplaceUpdateView
 
     submission_list_view = views.SubmissionListView
@@ -58,6 +59,11 @@ class OscarMwsDashboardApplication(Application):
                 r'^merchant/update/(?P<pk>\d+)/$',
                 self.merchant_update_view.as_view(),
                 name='merchant-update',
+            ),
+            url(
+                r'^merchant/delete/(?P<pk>\d+)/$',
+                self.merchant_delete_view.as_view(),
+                name='merchant-delete',
             ),
             url(
                 r'^merchant/(?P<seller_id>[\w]+)/marketplace/update/$',

@@ -16,6 +16,12 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{% url "mws-dashboard:merchant-delete" merchant.id %}">
+                        <i class="icon-remove"></i>
+                        {% trans "Delete merchant" %}
+                    </a>
+                </li>
+                <li>
                     <a href="{% url "mws-dashboard:marketplace-update" seller_id=merchant.seller_id %}">
                         <i class="icon-refresh"></i>
                         {% trans "Update marketplaces" %}
