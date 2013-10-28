@@ -18,6 +18,11 @@ FeedSubmission = get_model("oscar_mws", "FeedSubmission")
 MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
 
 
+OP_TYPE_UPDATE = 'Update'
+OP_TYPE_PARTIAL_UPDATE= 'PartialUpdate'
+OP_TYPE_DELETE = 'Delete'
+
+
 class MwsFeedError(BaseException):
     pass
 
@@ -51,7 +56,8 @@ def handle_feed_submission_response(merchant, response, feed_xml=None):
     return submission
 
 
-def submit_product_feed(products, marketplaces, dry_run=False):
+def submit_product_feed(products, marketplaces, dry_run=False,
+                        operation_type=OP_TYPE_UPDATE):
     """
     Generate a product feed for the list of *products* and submit it to
     Amazon. The submission ID returned by them is used to create a
@@ -194,6 +200,37 @@ def list_submitted_feeds(merchants=None):
     return feed_info
 
 
+def cancel_submission(submission):
+    merchant = submission.merchant
+    feeds_api = get_merchant_connection(merchant.seller_id).feeds
+    response = feeds_api.cancel_feed_submissions(
+        feedids=[submission.submission_id]
+    ).parsed
+
+    result = response.get('FeedSubmissionInfo')
+    try:
+        submission = FeedSubmission.objects.get(
+            submission_id=result.FeedSubmissionId,
+            date_submitted=du_parse(result.SubmittedDate),
+            feed_type=result.FeedType,
+        )
+    except FeedSubmission.DoesNotExist:
+        submission = FeedSubmission(
+            submission_id=result.FeedSubmissionId,
+            date_submitted=du_parse(result.SubmittedDate),
+            feed_type=result.FeedType,
+        )
+
+    if submission.processing_status != result.FeedProcessingStatus:
+        return submission
+
+    submission.merchant = merchant
+    submission.processing_status = result.FeedProcessingStatus
+    submission.save()
+
+    return submission
+
+
 def process_submission_results(submission):
     """
     Retrieve the submission results via the MWS API to check for errors in
@@ -274,10 +311,9 @@ def update_product_identifiers(merchant, products):
                 marketplaceid=marketplace_id,
                 type="SellerSKU",
                 id=[product.amazon_profile.sku],
-            )
+            ).parsed
 
-            result = response.GetMatchingProductForIdResult
-            if not result.get('status') == 'Success':
+            if not response.get('@status') == 'Success':
                 logger.info(
                     'Skipping product with SKU {0}, no info available'.format(
                         response.get("Id")
@@ -285,15 +321,18 @@ def update_product_identifiers(merchant, products):
                 )
                 continue
 
-            for fprod in response.GetMatchingProductForIdResult.Products.Product:
+            for fprod in response.Products.get_list('Product'):
                 mp_asin = fprod.Identifiers.MarketplaceASIN
                 marketplace_id = mp_asin.MarketplaceId
                 asin = mp_asin.ASIN
 
+                logger.debug('ASIN in response: {}'.format(asin))
+
                 if asin:
-                    AmazonProfile.objects.filter(**{
-                        AmazonProfile.SELLER_SKU_FIELD: result.get("Id")
-                    }).update(asin=asin)
+                    profiles = AmazonProfile.objects.filter(**{
+                        AmazonProfile.SELLER_SKU_FIELD: response.get("@Id")
+                    })
+                    profiles.update(asin=asin)
 
 
 def switch_product_fulfillment(marketplace, products, dry_run=False):
@@ -317,7 +356,7 @@ def switch_product_fulfillment(marketplace, products, dry_run=False):
     response = feeds_api.submit_feed(
         feed=xml_data,
         feed_type=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
-        marketplaceids=marketplace.marketplace_id
+        marketplaceids=[marketplace.marketplace_id]
     )
     return handle_feed_submission_response(marketplace.merchant,
                                            response.parsed, feed_xml=xml_data)

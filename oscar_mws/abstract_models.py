@@ -252,6 +252,8 @@ class AbstractAmazonProfile(models.Model):
         return self.product.product_class
 
     def get_standard_product_id(self):
+        if self.asin:
+            return E.StandardProductID(E.Type("ASIN"), E.Value(self.asin))
         if self.product.upc and 7 < len(self.product.upc) < 16:
             return E.StandardProductID(
                 E.Type("UPC"),
@@ -264,7 +266,7 @@ class AbstractAmazonProfile(models.Model):
         if not hasattr(self, '_cached_sku'):
             if not self.product.has_stockrecord:
                 self._cached_sku = None
-            self._cached_sku = self.product.stockrecord.partner_sku
+            self._cached_sku = self.product.stockrecord.partner_sku.strip()
         return self._cached_sku
 
     def __unicode__(self):

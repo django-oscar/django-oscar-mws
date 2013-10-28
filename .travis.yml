@@ -1,15 +1,21 @@
 language: python
 python:
-  - "2.6"
-  - "2.7"
+- '2.6'
+- '2.7'
 env:
+  matrix:
   - DJANGO_VERSION=">=1.4,<1.5"
   - DJANGO_VERSION=">=1.5,<1.6"
+  global:
+  - secure: mbmuO3jEoovVpSO4isfv8A9SYaMITgMqgEnJSDjak3vguw+tzR5dcciWIx+GgA1xJ7bhzLA98WOQ98dmXAMnxYTe8jMnwB0UI1hiYIb7qu/aTTIghg892rmTgAWCz54ZqLCWisKPtk4Vyvw+lWR7QaXiEb1V3+9rSyjPc/fsxes=
+  - secure: qNEYG8u30LK8vc1bOzyqQTwqvjOXeE1JZXEtk2Vfse8/XZb+Lmw94ZFiIWufoQ4Lso2I1WtSvf746ko8C+pzAeU4fY97BOPh2MSgfERCyYnC2DTDhtl7chejU+L3TC2swty74A3K4BC2Q7mDug6YurqMTba6F28RqT8pgOa76BA=
+  - secure: O11ij/FngXJqi19KRVm15YT6XzPYh6EN7vHpiwZYa8rEZssCi/7IIkgfwSlVPdEWGBnguLOt27MtQhRR3CW6L9597kS5gFSpZ1WS9ttuMjQeEwRaQisrgv2BIjpd4ZB87zsWxzAn+WNoLpk/QeBW5rGpWma5DThgTEYfT7IiPmY=
 install:
-  - pip install Django$DJANGO_VERSION
-  - pip install . --use-mirrors
-  - pip install -r requirements.txt --use-mirrors
+- pip install Django$DJANGO_VERSION
+- pip install . --use-mirrors
+- pip install -r requirements.txt --use-mirrors
 script:
-  - py.test --cov oscar_support
+- py.test --cov oscar_support -m 'not integration'
+- py.test -m 'integration'
 after_success:
-  - coveralls
+- coveralls
