@@ -94,5 +94,41 @@ def pytest_configure():
                 'ENGINE': 'haystack.backends.simple_backend.SimpleEngine',
             },
         },
+        LOGGING={
+            'version': 1,
+            'disable_existing_loggers': True,
+            'formatters': {
+                'verbose': {
+                    'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+                },
+                'simple': {
+                    'format': '%(levelname)s %(message)s'
+                },
+            },
+            'filters': {
+                'require_debug_false': {
+                    '()': 'django.utils.log.RequireDebugFalse'
+                }
+            },
+            'handlers': {
+                'console': {
+                    'level': 'DEBUG',
+                    'class': 'logging.StreamHandler',
+                    'formatter': 'simple',
+                }
+            },
+            'loggers': {
+                'oscar_mws.api': {
+                    'handlers': ['console'],
+                    'level': 'DEBUG',
+                    'propagate': True,
+                },
+                'django.request': {
+                    'handlers': ['console'],
+                    'level': 'DEBUG',
+                    'propagate': True,
+                },
+            }
+        },
         **DEFAULT_SETTINGS
     )
