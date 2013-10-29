@@ -223,6 +223,7 @@ class MWS(object):
 
         # Store the response object in the parsed_response for quick access
         parsed_response.response = response
+        logger.debug("Received response: {}".format(response.content))
         return parsed_response
 
     def get_service_status(self):

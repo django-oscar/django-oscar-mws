@@ -38,25 +38,18 @@ class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
 
         fulfillment_order = FulfillmentOrder.objects.all()[0]
         self.assertEquals(FulfillmentOrder.objects.count(), 1)
-        self.assertEquals(fulfillment_order.status, 'PROCESSING')
+        self.assertEquals(fulfillment_order.status, 'COMPLETE')
 
         shipments = FulfillmentShipment.objects.all()
-        self.assertEquals(len(shipments), 2)
+        self.assertEquals(len(shipments), 1)
 
         expected = {
-            'DKMKLXJmN': {
-                'shipment_id': 'DKMKLXJmN',
+            'Dkw.3ko298': {
+                'shipment_id': 'Dkw.3ko298',
                 'status': 'SHIPPED',
-                'fulfillment_center_id': 'TST1',
-                'date_shipped': du_parse('2006-08-03T07:00:00Z'),
-                'date_estimated_arrival': du_parse('2006-08-12T07:00:00Z'),
-            },
-            'DnMDLWJWN': {
-                'shipment_id': 'DnMDLWJWN',
-                'status': 'PENDING',
-                'fulfillment_center_id': 'RNO1',
-                'date_shipped': du_parse('2006-08-04T07:00:00Z'),
-                'date_estimated_arrival': du_parse('2006-08-12T07:00:00Z'),
+                'fulfillment_center_id': 'FCID01',
+                'date_shipped': du_parse('2013-10-29T00:50:03Z'),
+                'date_estimated_arrival': du_parse('2013-10-30T23:59:59Z'),
             },
         }
         for shipment in shipments:
@@ -66,13 +59,13 @@ class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
         packages = ShipmentPackage.objects.all()
         self.assertEquals(len(packages), 1)
 
-        self.assertEquals(packages[0].tracking_number, '93ZZ00')
-        self.assertEquals(packages[0].carrier_code, 'UPS')
+        self.assertEquals(packages[0].tracking_number, 'MPT_1234')
+        self.assertEquals(packages[0].carrier_code, 'Magic Parcels')
 
         shipping_events = ShippingEvent.objects.all()
-        self.assertEquals(len(shipping_events), 2)
+        self.assertEquals(len(shipping_events), 1)
 
         self.assertItemsEqual(
             [s.notes for s in shipping_events],
-            [None, '* Shipped package via UPS with tracking number 93ZZ00']
+            ['* Shipped package via Magic Parcels with tracking number MPT_1234']
         )

@@ -16,6 +16,7 @@ StockRecord = get_model('partner', 'StockRecord')
 Line = get_model('order', 'Line')
 ShippingEvent = get_model('order', 'ShippingEvent')
 ShippingEventType = get_model('order', 'ShippingEventType')
+ShippingEventQuantity = get_model('order', 'ShippingEventQuantity')
 
 ShipmentPackage = get_model('oscar_mws', 'ShipmentPackage')
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
@@ -113,7 +114,19 @@ def update_fulfillment_order(fulfillment_order):
                 fulfillment_line__order_item_id=item.SellerSKU
             )
             for fline in fulfillment_lines:
-                shipping_event.lines.add(fline)
+                try:
+                    seq = ShippingEventQuantity.objects.get(
+                        event=shipping_event,
+                        line=fline,
+                    )
+                except ShippingEventQuantity.DoesNotExist:
+                    seq = ShippingEventQuantity(
+                        event=shipping_event,
+                        line=fline,
+                    )
+                seq.quantity = int(item.Quantity)
+                seq.save()
+
                 fline.shipment = shipment
                 try:
                     fline.package = shipment.packages.get(
