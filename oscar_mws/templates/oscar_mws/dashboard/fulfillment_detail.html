@@ -76,13 +76,13 @@
                             <td rowspan="{{ packages|length }}">{{ shipment.status }}</td>
                             <td rowspan="{{ packages|length }}">{{ shipment.date_shipped }}</td>
                             <td rowspan="{{ packages|length }}">{{ shipment.date_estimated_arrival }}</td>
-                        {% endwith %}
 
                         {% for package in packages %}
                             <td>{{ package.package_number }}</td>
                             <td>{{ package.tracking_number }}</td>
                             <td>{{ package.carrier_code }}</td>
                         {% endfor %}
+                        {% endwith %}
                     {% endif %}
                 </tr>
                 {% empty %}

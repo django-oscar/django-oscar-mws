@@ -5,9 +5,13 @@
         <form id="submit-fulfillment-order" method="post"
               action="{% url "mws-dashboard:fulfillment-create" order_number=order.number %}">
             {% csrf_token %}
+
+            {# If the order has been created already, we don't want to show this button. #}
+            {% if not order.fulfillment_orders.count %}
             <button class="btn btn-primary" type="submit">
                 {% trans "Request fulfillment by Amazon" %}
             </button>
+            {% endif %}
             <a class="btn btn-primary" href="{% url "mws-dashboard:fulfillment-update" order_number=order.number %}">
                 {% trans "Update fulfillment orders" %}
            </a>
