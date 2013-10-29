@@ -56,11 +56,6 @@ def remove_empty(d):
     return d
 
 
-def remove_namespace(xml):
-    regex = re.compile(' xmlns(:ns2)?="[^"]+"|(ns2:)|(xml:)')
-    return regex.sub('', xml)
-
-
 class MWSObject(OrderedDict):
 
     def get_list(self, name):
@@ -149,6 +144,16 @@ class MWS(object):
         self.uri = uri or self.URI
         self.version = version or self.VERSION
 
+    def _get_quote_params(self, params):
+        quoted_params = []
+        for key in sorted(params):
+            value = urllib.quote(
+                unicode(params[key]).encode('utf-8'),
+                safe='-_.~'
+            )
+            quoted_params.append("{}={}".format(key, value))
+        return '&'.join(quoted_params)
+
     def make_request(self, extra_data, method="GET", **kwargs):
         """
         Make request to Amazon MWS API with these parameters
@@ -166,9 +171,7 @@ class MWS(object):
             'SignatureMethod': 'HmacSHA256',
         }
         params.update(extra_data)
-        request_description = '&'.join(
-            ['%s=%s' % (k, urllib.quote(unicode(params[k]), safe='-_.~').encode('utf-8')) for k in sorted(params)]
-        )
+        request_description = self._get_quote_params(params)
         signature = self.calc_signature(method, request_description)
         url = '%s%s?%s&Signature=%s' % (self.domain, self.uri,
                                         request_description,
