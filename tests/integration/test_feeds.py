@@ -41,7 +41,7 @@ class TestSubmittingAFeed(TestCase):
         self.assertEquals(submission.processing_status, am.STATUS_SUBMITTED)
 
         while submission.processing_status not in [am.STATUS_DONE, am.STATUS_CANCELLED]:
-            time.sleep(30)
+            time.sleep(30)  # wait before next polling to avoid throttling
             submission = feeds_gw.update_feed_submission(submission)
 
         return submission
@@ -51,14 +51,19 @@ class TestSubmittingAFeed(TestCase):
             products=[self.product],
             marketplaces=[self.marketplace]
         )
-        self.assertEquals(len(submissions), 1)
-
         submission = submissions[0]
         self.assertEquals(submission.processing_status, am.STATUS_SUBMITTED)
 
-        time.sleep(1)
-
+        # we need to wait a bit before we can cancel the submission just to
+        # make sure that it is available in the system
+        time.sleep(2)
         submission = feeds_gw.cancel_submission(submission)
+
+        # we need to wait again to make sure we get the proper result for the
+        # feed submission ID
+        time.sleep(5)
+        submission = feeds_gw.update_feed_submission(submission)
+
         self.assertEquals(submission.processing_status, am.STATUS_CANCELLED)
 
     def test_is_processed(self):

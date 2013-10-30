@@ -79,8 +79,6 @@ def pytest_configure():
         AUTHENTICATION_BACKENDS=(
             'django.contrib.auth.backends.ModelBackend',
         ),
-        MWS_AWS_ACCESS_KEY_ID='fakeaccesskey',
-        MWS_AWS_SECRET_ACCESS_KEY='fakesecret',
         COMPRESS_ENABLED=True,
         COMPRESS_OFFLINE=False,
         COMPRESS_PRECOMPILERS=(
@@ -118,6 +116,11 @@ def pytest_configure():
                 }
             },
             'loggers': {
+                'oscar_mws': {
+                    'handlers': ['console'],
+                    'level': 'DEBUG',
+                    'propagate': True,
+                },
                 'oscar_mws.api': {
                     'handlers': ['console'],
                     'level': 'DEBUG',
