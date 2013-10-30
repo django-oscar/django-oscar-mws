@@ -66,9 +66,9 @@ class BaseProductMapper(object):
         pyattr = self.convert_camel_case(attr_name)
 
         attr_value = self._get_value_from(self, pyattr)
-        if not attr_value:
+        if attr_value is None:
             attr_value = self._get_value_from(self.product.amazon_profile, pyattr)
-        if not attr_value:
+        if attr_value is None:
             attr_value = self._get_value_from(self.product, pyattr)
 
         # if we still have no value we assume it is optional and

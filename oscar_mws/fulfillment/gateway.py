@@ -200,7 +200,6 @@ def update_inventory(products):
         submit_products[seller_id].add(sku)
 
     for seller_id, skus in submit_products.iteritems():
-        print 'SELLER ID', seller_id
         inventory_api = get_merchant_connection(seller_id).inventory
         response = inventory_api.list_inventory_supply(skus=skus).parsed
 
