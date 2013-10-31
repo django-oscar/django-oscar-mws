@@ -8,6 +8,8 @@ Amazon MWS integration with Oscar
 .. image:: https://coveralls.io/repos/tangentlabs/django-oscar-mws/badge.png?branch=master
     :target: https://coveralls.io/r/tangentlabs/django-oscar-mws?branch=master
 
+.. image:: https://d2weczhvl823v0.cloudfront.net/tangentlabs/django-oscar-mws/trend.png
+
 
 Disclaimer
 ----------
