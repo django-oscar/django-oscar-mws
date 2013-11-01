@@ -3,7 +3,6 @@
 #
 # Basic interface to Amazon MWS
 # Based on http://code.google.com/p/amazon-mws-python
-import re
 import hmac
 import urllib
 import base64
@@ -14,12 +13,15 @@ import xmltodict
 from time import strftime, gmtime
 from collections import OrderedDict
 
+from django.conf import settings
+
 try:
     from xml.etree.ElementTree import ParseError as XMLError
 except ImportError:
     from xml.parsers.expat import ExpatError as XMLError
 
 from requests import request
+from requests.sessions import Session
 from requests.exceptions import HTTPError
 
 
@@ -143,6 +145,34 @@ class MWS(object):
         self.domain = domain
         self.uri = uri or self.URI
         self.version = version or self.VERSION
+        self.session = Session()
+
+        bucket_key = getattr(settings, 'RUNSCOPE_BUCKET_KEY', None)
+        if settings.DEBUG and bucket_key:
+            self.configure_runscope(bucket_key)
+
+    def configure_runscope(self, bucket_key):
+        """
+        Configure all connections to be proxied through runscope for easier
+        debugging and logging of all requests and responses. *bucket_key* is
+        API for the bucket you want to use for all the request. Check Runscope
+        for more details on that.
+        """
+        try:
+            from requests_runscope import RunscopeAdapter
+        except ImportError:
+            logger.error(
+                "Could not import runscope adapter. Is requests-runscope "
+                "installed? Try running pip install requests-runscope."
+            )
+        else:
+            logger.debug(
+                'Mounting runscope proxy adapter for bucket {}'.format(
+                    bucket_key
+                )
+            )
+            self.session.mount('http://', RunscopeAdapter(bucket_key))
+            self.session.mount('https://', RunscopeAdapter(bucket_key))
 
     def _get_quote_params(self, params):
         quoted_params = []

@@ -148,6 +148,7 @@ DJANGO_APPS = [
 
     'compressor',
     'south',
+    'django_extensions',
 ]
 
 THIRD_PARTY_APPS = [
@@ -222,3 +223,6 @@ LOGGING = {
 
 INTERNAL_IPS = ('127.0.0.1',)
 
+########## RUNSCOPE SETTINGS
+RUNSCOPE_BUCKET_KEY = os.getenv('RUNSCOPE_BUCKET_KEY')
+########## END RUNSCOPE SETTINGS

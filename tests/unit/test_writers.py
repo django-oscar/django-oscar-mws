@@ -11,8 +11,10 @@ from django.utils.timezone import now
 
 from oscar_testsupport.factories import create_product
 
+from oscar_mws.test import factories
 from oscar_mws.feeds.mappers import ProductMapper
 from oscar_mws.feeds.writers import ProductFeedWriter
+
 
 UTC_NOW = now()
 
@@ -70,27 +72,18 @@ class TestBaseProductMapper(TestCase):
         obj = mock.Mock()
         obj.get_test_attribute = mock.Mock(return_value='amazing value')
 
-        self.assertEquals(
-            self.mapper._get_value_from(obj, 'test_attribute'),
-            obj.get_test_attribute()
-        )
+        self.assertEquals(self.mapper._get_value_from(obj, 'test_attribute'),
+                          obj.get_test_attribute())
 
     def test_can_create_feed_for_base_attributes(self):
         product = create_product()
-
-        AmazonProfile.objects.create(
-            product=product,
-            release_date=UTC_NOW
-        )
+        profile = factories.AmazonProfileFactory(
+            product=product, release_date=UTC_NOW)
 
         mapper = ProductMapper(product=product)
         xml = etree.tostring(mapper.get_product_xml())
         self.assertIn(
-            '<SKU>{0}</SKU>'.format(product.stockrecord.partner_sku),
-            xml
-        )
+            '<SKU>{0}</SKU>'.format(profile.sku), xml)
         self.assertIn(
-            '<ReleaseDate>{0}</ReleaseDate>'.format(UTC_NOW.isoformat()),
-            xml
-        )
+            '<ReleaseDate>{0}</ReleaseDate>'.format(UTC_NOW.isoformat()), xml)
         self.assertIn('<Title>{0}</Title>'.format(product.title), xml)

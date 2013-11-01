@@ -7,6 +7,9 @@ from django.utils.translation import ugettext_lazy as _
 
 from lxml.builder import E
 
+Partner = models.get_model('partner', 'Partner')
+StockRecord = models.get_model('partner', 'StockRecord')
+
 
 STATUS_DONE = "_DONE_"
 STATUS_SUBMITTED = "_SUBMITTED_"
@@ -189,9 +192,6 @@ class AbstractFeedResult(models.Model):
 
 
 class AbstractAmazonProfile(models.Model):
-    SELLER_SKU_FIELD = "product__{0}".format(
-        getattr(settings, "MWS_SELLER_SKU_FIELD")
-    )
     FULFILLMENT_BY_AMAZON = "AFN"
     FULFILLMENT_BY_MERCHANT = "MFN"
     FULFILLMENT_TYPES = (
@@ -202,6 +202,7 @@ class AbstractAmazonProfile(models.Model):
     # We don't necessarily get the ASIN back right away so we need
     # to be able to create a profile without a ASIN
     asin = models.CharField(_("ASIN"), max_length=10, blank=True)
+    sku = models.CharField(_("SKU"), max_length=64)
     product = models.OneToOneField(
         'catalogue.Product',
         verbose_name=_("Product"),
@@ -261,13 +262,11 @@ class AbstractAmazonProfile(models.Model):
             )
         return None
 
-    @property
-    def sku(self):
-        if not hasattr(self, '_cached_sku'):
-            if not self.product.has_stockrecord:
-                self._cached_sku = None
-            self._cached_sku = self.product.stockrecord.partner_sku.strip()
-        return self._cached_sku
+    def save(self, *args, **kwargs):
+        super(AbstractAmazonProfile, self).save(*args, **kwargs)
+        if getattr(settings, 'MWS_ENFORCE_PARTNER_SKU', True):
+            StockRecord.objects.filter(product__amazon_profile=self).update(
+                partner_sku=self.sku)
 
     def __unicode__(self):
         return "Amazon profile for {0}".format(self.product.title)
@@ -454,6 +453,20 @@ class AbstractMerchantAccount(models.Model):
     aws_api_key = models.CharField(_("AWS API Key"), max_length=200)
     aws_api_secret = models.CharField(_("AWS API Secret"), max_length=200)
     seller_id = models.CharField(_("Seller/Merchant ID"), max_length=200)
+
+    partner = models.OneToOneField(
+        "partner.Partner",
+        verbose_name=_("Partner"),
+        related_name="amazon_merchant",
+        null=True, blank=True
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.partner:
+            self.partner, __  = Partner.objects.get_or_create(
+                name="Amazon {} ({})".format(self.name, self.region)
+            )
+        super(AbstractMerchantAccount, self).save(*args, **kwargs)
 
     @property
     def marketplace_ids(self):

@@ -4,13 +4,12 @@ import httpretty
 from django.test import TestCase
 from django.db.models import get_model
 
-from oscar_testsupport.factories import create_order, create_product
+from oscar.test.factories import create_order, create_product
 
 from oscar_mws.test import mixins, factories
 from oscar_mws.fulfillment.creator import FulfillmentOrderCreator
 
 Country = get_model('address', 'Country')
-Basket = get_model('basket', 'Basket')
 ShippingAddress = get_model('order', 'ShippingAddress')
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 
@@ -31,6 +30,9 @@ class TestFulfillmentShipmentCreator(mixins.DataLoaderMixin, TestCase):
             postcode="56789",
             country=Country.objects.all()[0],
         )
+        self.basket = factories.BasketFactory()
+        self.basket.add_product(factories.ProductFactory())
+        self.basket.add_product(factories.ProductFactory())
 
     @httpretty.activate
     def test_creates_shipments_for_single_address(self):
@@ -39,14 +41,11 @@ class TestFulfillmentShipmentCreator(mixins.DataLoaderMixin, TestCase):
             'https://mws.amazonservices.com/FulfillmentOutboundShipment/2010-10-01',
             body=self.load_data('create_fulfillment_order_response.xml'),
         )
-        order = create_order(shipping_address=self.address)
+        order = create_order(basket=self.basket, shipping_address=self.address)
         self.creator.create_fulfillment_order(order)
 
     @httpretty.activate
     def test_creates_shipments_for_multiple_addresses(self):
-        basket = Basket.open.create()
-        basket.add_product(create_product())
-        basket.add_product(create_product())
 
         httpretty.register_uri(
             httpretty.POST,
@@ -63,7 +62,7 @@ class TestFulfillmentShipmentCreator(mixins.DataLoaderMixin, TestCase):
             country=Country.objects.all()[0],
         )
 
-        order = create_order(basket=basket, shipping_address=self.address)
+        order = create_order(basket=self.basket, shipping_address=self.address)
         order.get_fulfillment_addresses = mock.Mock(
             return_value=[self.address, second_address]
         )

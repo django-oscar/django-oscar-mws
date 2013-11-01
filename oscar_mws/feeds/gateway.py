@@ -286,7 +286,7 @@ def process_submission_results(submission):
             if product_sku:
                 try:
                     product = Product.objects.get(
-                        product__stockrecord__partner_sku=product_sku
+                        amazon_profile__sku=product_sku
                     )
                 except Product.DoesNotExist:
                     pass
@@ -329,9 +329,9 @@ def update_product_identifiers(merchant, products):
                 logger.debug('ASIN in response: {}'.format(asin))
 
                 if asin:
-                    profiles = AmazonProfile.objects.filter(**{
-                        AmazonProfile.SELLER_SKU_FIELD: response.get("@Id")
-                    })
+                    profiles = AmazonProfile.objects.filter(
+                        sku=response.get("@Id")
+                    )
                     profiles.update(asin=asin)
 
 

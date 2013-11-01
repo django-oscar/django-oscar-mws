@@ -26,14 +26,13 @@ class TestAmazonProfile(WebTestCase):
         )
 
         profile_form = create_page.form
+        profile_form['sku'] = 'fake12345'
         profile_form['marketplaces'] = [self.marketplace.id]
         page = profile_form.submit()
 
         self.assertRedirects(page, reverse('mws-dashboard:profile-list'))
 
         profile = AmazonProfile.objects.get(product=self.product)
-        self.assertEquals(profile.sku, self.product.stockrecord.partner_sku)
-        self.assertSequenceEqual(
-            profile.marketplaces.all(),
-            [self.marketplace]
-        )
+        self.assertEquals(profile.sku, 'fake12345')
+        self.assertSequenceEqual(profile.marketplaces.all(),
+                                 [self.marketplace])

@@ -5,10 +5,9 @@ from dateutil.parser import parse as du_parse
 from django.test import TestCase
 from django.db.models import get_model
 
-from oscar_testsupport.factories import create_order
+from oscar.test.factories import create_order
 
 from oscar_mws.test import mixins, factories
-
 from oscar_mws.fulfillment.gateway import update_fulfillment_order
 
 ShippingEvent = get_model('order', 'ShippingEvent')
@@ -30,7 +29,9 @@ class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
             body=xml_data,
         )
 
-        order = create_order()
+        basket = factories.BasketFactory()
+        basket.add_product(factories.ProductFactory())
+        order = create_order(basket=basket)
 
         update_fulfillment_order(
             factories.FulfillmentOrderFactory(order=order)

@@ -98,5 +98,4 @@ class FulfillmentOrderCreator(object):
                     fulfillment_order=fulfillment_order,
                     order_item_id=la.get_seller_fulfillment_order_item_id(),
                 )
-
         return fulfillment_orders
