@@ -13,6 +13,7 @@ local_settings.py
 *.egg-info/
 *.cache/
 
+htmlcov/
 docs/build/
 sandbox/public/
 

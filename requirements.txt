@@ -16,6 +16,9 @@ pytest-django==2.3.0
 pytest-pep8==1.0.4
 django-oscar-testsupport==0.4
 
+# documentation
+Sphinx==1.2b3
+
 # Code style and coverage
 flake8>=0.8
 coverage>=3.5.1
