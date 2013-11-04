@@ -14,7 +14,7 @@ from ..feeds import gateway as feeds_gw
 from . import forms as dashboard_forms
 from ..seller.gateway import update_marketplaces
 from ..fulfillment.creator import FulfillmentOrderCreator
-from ..fulfillment.gateway import update_fulfillment_orders
+from ..fulfillment.gateway import update_fulfillment_orders, update_inventory
 
 Order = get_model('order', 'Order')
 Product = get_model('catalogue', 'Product')
@@ -61,6 +61,19 @@ class ProductListView(FormMixin, generic.ListView):
 
     def get_queryset(self):
         return Product.objects.prefetch_related('amazon_profile')
+
+    def handle_update_stock(self, marketplace, form):
+        products = self.get_selected_products(form)
+        if not products:
+            products = Product.objects.filter(Q(amazon_profile__isnull=False))
+        try:
+            update_inventory(products)
+        except feeds_gw.MwsFeedError:
+            messages.error(
+                self.request, "An error occured updating available stock")
+        else:
+            messages.info(
+                self.request, "Successfully updated available stock")
 
     def handle_submit_product_feed(self, marketplace, form):
         products = self.get_selected_products(form)

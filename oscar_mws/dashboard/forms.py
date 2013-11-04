@@ -9,10 +9,12 @@ class MwsProductFeedForm(forms.Form):
     FEED_CREATE_PRODUCTS = 'submit_product_feed'
     FEED_SWITCH_TO_AFN = 'switch_to_afn'
     UPDATE_PRODUCT_IDENTIFIERS = 'update_product_identifiers'
+    UPDATE_STOCK = 'update_stock'
     FEED_CHOICES = (
         (FEED_CREATE_PRODUCTS, _("Create new products")),
         (FEED_SWITCH_TO_AFN, _("Switch to 'Fulfillment by Amazon'")),
         (UPDATE_PRODUCT_IDENTIFIERS, _("Update product ASINs")),
+        (UPDATE_STOCK, _("Update product stock")),
     )
     submission_selection = forms.ChoiceField(choices=FEED_CHOICES)
     marketplace = forms.ModelChoiceField(

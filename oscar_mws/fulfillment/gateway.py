@@ -187,7 +187,7 @@ def update_inventory(products):
     product_values = Product.objects.filter(
         id__in=[p.id for p in products],
     ).values_list(
-        'stockrecord__partner_sku',
+        'amazon_profile__sku',
         'amazon_profile__marketplaces__merchant__seller_id'
     )
     submit_products = defaultdict(set)
@@ -206,7 +206,8 @@ def update_inventory(products):
         for inventory in response.InventorySupplyList.get_list('member'):
             try:
                 stockrecord = StockRecord.objects.get(
-                    partner_sku=inventory.SellerSKU
+                    product__amazon_profile__sku=inventory.SellerSKU,
+                    partner__amazon_merchant__seller_id=seller_id,
                 )
             except StockRecord.DoesNotExist:
                 logger.error(
@@ -214,5 +215,6 @@ def update_inventory(products):
                         inventory.SellerSKU
                     )
                 )
-            stockrecord.num_in_stock = inventory.InStockSupplyQuantity
-            stockrecord.save()
+            else:
+                stockrecord.num_in_stock = inventory.InStockSupplyQuantity
+                stockrecord.save()
