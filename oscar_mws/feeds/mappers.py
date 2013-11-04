@@ -67,7 +67,8 @@ class BaseProductMapper(object):
 
         attr_value = self._get_value_from(self, pyattr)
         if attr_value is None:
-            attr_value = self._get_value_from(self.product.amazon_profile, pyattr)
+            attr_value = self._get_value_from(
+                self.product.amazon_profile, pyattr)
         if attr_value is None:
             attr_value = self._get_value_from(self.product, pyattr)
 

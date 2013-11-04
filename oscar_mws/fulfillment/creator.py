@@ -13,27 +13,26 @@ FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 FulfillmentOrderLine = get_model('oscar_mws', 'FulfillmentOrderLine')
 
 
-try:
-    find_fulfillment_merchant = load_class(
-        getattr(settings, 'MWS_FULFILLMENT_MERCHANT_FINDER', None)
-    )
-except ImportError:
-    raise ImproperlyConfigured(
-        "no fulfillment merchant finder callable configured in "
-        "MWS_FULFILLMENT_MERCHANT_FINDER setting. Check your settings "
-        "file and try again."
-    )
-
-
 class FulfillmentOrderCreator(object):
     order_adapter_class = OrderAdapter
 
     def __init__(self, order_adapter_class=None):
         custom_adapter = getattr(settings, 'MWS_ORDER_ADAPTER', None)
+        self.errors = {}
+
         if custom_adapter:
             self.order_adapter_class = load_class(custom_adapter)
 
-        self.errors = {}
+        try:
+            self.find_fulfillment_merchant = load_class(
+                getattr(settings, 'MWS_FULFILLMENT_MERCHANT_FINDER', None)
+            )
+        except ImportError:
+            raise ImproperlyConfigured(
+                "no fulfillment merchant finder callable configured in "
+                "MWS_FULFILLMENT_MERCHANT_FINDER setting. Check your settings "
+                "file and try again."
+            )
 
     def get_order_adapter(self, order):
         return self.order_adapter_class(order=order)
@@ -45,7 +44,7 @@ class FulfillmentOrderCreator(object):
         for address in adapter.addresses:
             fulfillment_id = adapter.get_seller_fulfillment_order_id(address)
 
-            merchant = find_fulfillment_merchant(order, address)
+            merchant = self.find_fulfillment_merchant(order, address)
             if not merchant:
                 self.errors[fulfillment_id] = _(
                     "could not find suitable merchant for fulfillemnt order "
