@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Basic interface to Amazon MWS
-# Based on http://code.google.com/p/amazon-mws-python
+# This API client for Amazon's MWS is based on the python-amazon-mws package
+# available here: https://github.com/czpython/python-amazon-mws
 import hmac
 import urllib
 import base64
@@ -20,7 +20,6 @@ try:
 except ImportError:
     from xml.parsers.expat import ExpatError as XMLError
 
-from requests import request
 from requests.sessions import Session
 from requests.exceptions import HTTPError
 
@@ -148,7 +147,8 @@ class MWS(object):
         self.session = Session()
 
         bucket_key = getattr(settings, 'RUNSCOPE_BUCKET_KEY', None)
-        if settings.DEBUG and bucket_key:
+        if bucket_key:
+            logger.info("Redirecting API calls for MWS to runscope")
             self.configure_runscope(bucket_key)
 
     def configure_runscope(self, bucket_key):
@@ -166,13 +166,13 @@ class MWS(object):
                 "installed? Try running pip install requests-runscope."
             )
         else:
-            logger.debug(
+            logger.info(
                 'Mounting runscope proxy adapter for bucket {}'.format(
                     bucket_key
                 )
             )
-            self.session.mount('http://', RunscopeAdapter(bucket_key))
             self.session.mount('https://', RunscopeAdapter(bucket_key))
+            self.session.mount('http://', RunscopeAdapter(bucket_key))
 
     def _get_quote_params(self, params):
         quoted_params = []
@@ -220,8 +220,8 @@ class MWS(object):
             # params dict as params to request, request will repeat that step
             # because it will need to convert the dict to a url parsed string,
             # so why do it twice if i can just pass the full url :).
-            response = request(method, url, data=kwargs.get('body', ''),
-                               headers=headers)
+            response = self.session.request(
+                method, url, data=kwargs.get('body', ''), headers=headers)
             response.raise_for_status()
             # When retrieving data from the response object, be aware that
             # response.content returns the content in bytes while response.text
