@@ -13,6 +13,14 @@ from oscar_mws import MWS_MARKETPLACE_US
 Selector = get_class('partner.strategy', 'Selector')
 
 
+class CountryFactory(factory.DjangoModelFactory):
+    FACTORY_FOR = get_model('address', 'Country')
+
+    iso_3166_1_a2 = factory.Iterator(['US', 'GB', 'DE'])
+    iso_3166_1_a3 = factory.Iterator(['USA', 'GBR', 'DEU'])
+    iso_3166_1_numeric = factory.Iterator(['840', '276', '826'])
+
+
 class ProductClassFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('catalogue', 'ProductClass')
 
@@ -85,7 +93,7 @@ class FeedSubmissionFactory(factory.DjangoModelFactory):
 class PartnerFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('partner', 'Partner')
 
-    name = factory.Sequence(lambda n:'Dummy partner {}'.format(n))
+    name = factory.Sequence(lambda n: 'Dummy partner {}'.format(n))
 
 
 class StockRecordFactory(factory.DjangoModelFactory):
@@ -93,3 +101,15 @@ class StockRecordFactory(factory.DjangoModelFactory):
 
     price_excl_tax = D('12.99')
     partner = factory.SubFactory(PartnerFactory)
+
+
+class ShippingAddressFactory(factory.DjangoModelFactory):
+    FACTORY_FOR = get_model('order', 'ShippingAddress')
+
+    first_name = 'Peter'
+    last_name = 'Griffin'
+    line1 = '31 Spooner Street'
+    line4 = 'Quahog'
+    state = 'RI'
+    country = factory.SubFactory(CountryFactory)
+    postcode = '12345'

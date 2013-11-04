@@ -1,13 +1,16 @@
 import os
+import logging
 
 from django.conf import settings
+
+from oscar import OSCAR_MAIN_TEMPLATE_DIR, get_core_apps
 
 location = lambda x: os.path.join(
     os.path.dirname(os.path.realpath(__file__)), x
 )
 sandbox = lambda x: location("sandbox/%s" % x)
 
-from oscar import OSCAR_MAIN_TEMPLATE_DIR, get_core_apps
+logging.basicConfig(level=logging.INFO)
 
 
 def pytest_configure():
@@ -16,6 +19,7 @@ def pytest_configure():
 
     DEFAULT_SETTINGS = OSCAR_SETTINGS
     DEFAULT_SETTINGS.update(OSCAR_MWS_SETTINGS)
+    DEFAULT_SETTINGS['OSCAR_DEFAULT_CURRENCY'] = 'USD'
 
     settings.configure(
         DATABASES={
@@ -134,5 +138,6 @@ def pytest_configure():
                 },
             }
         },
+        DEBUG=True,
         **DEFAULT_SETTINGS
     )

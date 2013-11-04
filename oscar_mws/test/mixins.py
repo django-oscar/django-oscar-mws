@@ -2,6 +2,8 @@ import os
 import base64
 import hashlib
 
+from . import factories
+
 
 class DataLoaderMixin(object):
     data_directory = 'tests/data'
@@ -18,3 +20,23 @@ class DataLoaderMixin(object):
         with open(path) as fh:
             data = fh.read()
         return data
+
+
+class IntegrationMixin(object):
+
+    def setUp(self):
+        super(IntegrationMixin, self).setUp()
+        self.product = factories.ProductFactory(
+            upc='9781741173420', title='Kayaking Around Australia')
+        self.merchant = factories.MerchantAccountFactory(
+            name="Integration Test Account", seller_id=os.getenv('SELLER_ID'),
+            aws_api_key=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_api_secret=os.getenv('AWS_SECRET_ACCESS_KEY'))
+
+        amazon_profile = factories.AmazonProfileFactory(product=self.product)
+        amazon_profile.fulfillment_by = amazon_profile.FULFILLMENT_BY_AMAZON
+        amazon_profile.save()
+
+        self.marketplace = factories.AmazonMarketplaceFactory(
+            merchant=self.merchant, marketplace_id='ATVPDKIKX0DER')
+        amazon_profile.marketplaces.add(self.marketplace)
