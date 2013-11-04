@@ -11,6 +11,10 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   getting_started
+   settings
+   notes
+
 
 
 Indices and tables
