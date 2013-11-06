@@ -6,6 +6,11 @@
 Welcome to django-oscar-mws's documentation!
 ============================================
 
+*django-oscar-mws* is still under heavy development and things are changing
+quickly. That means the few pieces of documentation currently available are
+likely to change or might even be obsolete. It also explains why the docs are
+pretty much non-existent. Stay tune, I'll try and improve them as I go along.
+
 Contents:
 
 .. toctree::
@@ -13,6 +18,7 @@ Contents:
 
    getting_started
    settings
+   recipes
    notes
 
 

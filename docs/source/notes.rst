@@ -31,3 +31,9 @@ Submitting An Order
       <Code>InvalidRequestException</Code>
       <Message>Value US for parameter DestinationAddress.CountryCode is invalid. Reason: InvalidValue.</Message>
     </Error>
+
+* Submitting an order requires a value for ``StateOrProvinceCode`` for the
+  destination address. As far as I have tested it, there is no validation on
+  the state for the European marketplaces. The Marketplace for the US (and most
+  likely Canada as well) is rejecting anything but the official 2-letter code
+  for the US state.

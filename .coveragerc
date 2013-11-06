@@ -1,3 +1,5 @@
 [run]
 source = oscar_mws
-omit = *migrations*
+omit =
+    *migrations*
+    oscar_mws/test/*
