@@ -114,6 +114,9 @@ class OrderAdapter(BaseAdapter):
             addresses = [self.order.shipping_address]
         return addresses
 
+    def get_destination_address(self, address, **kwargs):
+        return address
+
     def get_seller_fulfillment_order_id(self, address, **kwargs):
         if self.has_mutliple_destinations:
             return "{0}-{1}".format(

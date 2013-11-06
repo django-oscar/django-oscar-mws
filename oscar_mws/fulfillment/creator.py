@@ -57,7 +57,7 @@ class FulfillmentOrderCreator(object):
                     fulfillment_id=fulfillment_id,
                     order=order,
                     merchant=merchant,
-                    shipping_address=address,
+                    shipping_address=order_kw.get('DestinationAddress'),
                     shipping_speed=order_kw.get('ShippingSpeedCategory'),
                     comments=order_kw.get('DisplayableOrderComment'),
                 )
