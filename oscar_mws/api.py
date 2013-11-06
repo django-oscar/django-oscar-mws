@@ -698,9 +698,15 @@ class OutboundShipments(MWS):
             ShippingSpeedCategory=shipping_speed,
             DisplayableOrderComment=comments,
         )
+        if fulfillment_method:
+            data['FulfillmentMethod'] = fulfillment_method
+        if fulfillment_policy:
+            data['FulfillmentPolicy'] = fulfillment_policy
+        data.update(self.dict_param('DestinationAddress', destination_address))
+        data.update(self.enumerate_param('NotificationEmailList.member',
+                                         notification_emails))
         for k, v in self.enumerate_param('Items.member', items).iteritems():
             data.update(self.dict_param(k, v))
-        data.update(self.dict_param('DestinationAddress', destination_address))
         return self.make_request(data, 'POST')
 
     def get_fulfillment_order(self, order_id):

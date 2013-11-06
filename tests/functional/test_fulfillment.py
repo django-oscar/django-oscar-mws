@@ -18,6 +18,30 @@ FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 FulfillmentShipment = get_model('oscar_mws', 'FulfillmentShipment')
 
 
+class TestCreateFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
+
+    @httpretty.activate
+    def test_creates_shipments_for_single_address(self):
+        httpretty.register_uri(
+            httpretty.POST,
+            'https://mws.amazonservices.com/FulfillmentOutboundShipment/2010-10-01',
+            body=self.load_data('create_fulfillment_order_response.xml'),
+        )
+
+
+class TestUpdatingFulfillmentOrders(mixins.DataLoaderMixin, TestCase):
+
+    @httpretty.activate
+    def test_updates_a_single_order_status(self):
+        httpretty.register_uri(
+            httpretty.POST,
+            'https://mws.amazonservices.com/',
+            responses=[httpretty.Response(
+                self.load_data('get_fulfillment_order_response.xml'),
+            )],
+        )
+
+
 class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
 
     @httpretty.activate

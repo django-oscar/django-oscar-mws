@@ -1,11 +1,15 @@
 import oscar_mws
 
+from collections import OrderedDict
+
 from django.db import models
 from django.conf import settings
 from django.utils.timezone import now as tz_now
 from django.utils.translation import ugettext_lazy as _
 
 from lxml.builder import E
+
+from .fulfillment.adapters import get_order_line_adapter, get_order_adapter
 
 Partner = models.get_model('partner', 'Partner')
 StockRecord = models.get_model('partner', 'StockRecord')
@@ -304,6 +308,11 @@ class AbstractAmazonProfile(models.Model):
 
 
 class AbstractFulfillmentOrder(models.Model):
+    # Statuses for internal use only
+    UNSUBMITTED = 'UNSUBMITTED'
+    SUBMISSION_FAILED = 'SUBMISSION_FAILED'
+    SUBMITTED = 'SUBMITTED'
+    # Statuses as reported by Amazon
     RECEIVED = 'RECEIVED'
     INVALID = 'INVALID'
     PLANNING = 'PLANNING'
@@ -314,6 +323,9 @@ class AbstractFulfillmentOrder(models.Model):
     UNFULFILLABLE = 'UNFULFILLABLE'
 
     STATUSES = (
+        (UNSUBMITTED, _("Not submitted to Amazon")),
+        (SUBMISSION_FAILED, _("Failed submitting to Amazon")),
+        (SUBMITTED, _("Submitted to Amazon")),
         (RECEIVED, _("Received")),
         (INVALID, _("Invalid")),
         (PLANNING, _("Planning")),
@@ -323,37 +335,61 @@ class AbstractFulfillmentOrder(models.Model):
         (COMPLETE_PARTIALLED, _("Complete Partialled")),
         (UNFULFILLABLE, _("Unfullfillable")),
     )
-
     fulfillment_id = models.CharField(
-        _("Fulfillment ID"),
-        max_length=32,
-        unique=True,
-    )
+        _("Fulfillment ID"), max_length=32, unique=True)
     merchant = models.ForeignKey(
-        "MerchantAccount",
-        verbose_name=_("Merchant account"),
-        related_name="fulfillment_orders",
-        null=True, blank=False,
-    )
-    order = models.ForeignKey(
-        'order.Order',
-        verbose_name=_("Order"),
-        related_name="fulfillment_orders"
-    )
+        "MerchantAccount", verbose_name=_("Merchant account"),
+        related_name="fulfillment_orders", null=True, blank=False)
 
+    shipping_address = models.ForeignKey(
+        'order.ShippingAddress', verbose_name=_("Shipping address"),
+        related_name='fulfillment_orders', null=True)
+    shipping_speed = models.CharField(
+        _("Shiping speed category"), max_length=200)
+    comments = models.TextField(_("Comments"))
+
+    order = models.ForeignKey(
+        'order.Order', verbose_name=_("Order"),
+        related_name="fulfillment_orders")
     lines = models.ManyToManyField(
-        'order.Line',
-        through='FulfillmentOrderLine',
-        verbose_name=_("Lines"),
-        related_name="fulfillment_orders"
-    )
+        'order.Line', through='FulfillmentOrderLine', verbose_name=_("Lines"),
+        related_name="fulfillment_orders")
     status = models.CharField(
-        _("Fulfillment status"),
-        max_length=25,
-        choices=STATUSES,
-        blank=True
-    )
+        _("Fulfillment status"), max_length=25, choices=STATUSES, blank=True,
+        default=UNSUBMITTED)
     date_updated = models.DateTimeField(_("Date last updated"))
+
+    def get_items(self):
+        items = []
+        for line in self.lines.all().prefetch_related('fulfillment_line'):
+            items.append(line.fulfillment_line.get_item_kwargs())
+        return items
+
+    def get_destination_address(self):
+        return OrderedDict(
+            Name=self.shipping_address.name,
+            Line1=self.shipping_address.line1,
+            Line2=self.shipping_address.line2,
+            line3=self.shipping_address.line3,
+            City=self.shipping_address.city,
+            CountryCode=self.shipping_address.country.iso_3166_1_a2,
+            StateOrProvinceCode=self.shipping_address.state,
+            PostalCode=self.shipping_address.postcode,
+        )
+
+    def get_order_kwargs(self):
+        kwargs = {
+            'order_id': self.fulfillment_id,
+            'displayable_order_id': self.fulfillment_id,
+            'order_date': self.order.date_placed.isoformat(),
+            'shipping_speed': self.shipping_speed,
+            'comments': self.comments[:1000],
+            'items': self.get_items(),
+            'destination_address': self.get_destination_address(),
+        }
+        if self.order.user:
+            kwargs['notification_emails'] = [self.order.user.email]
+        return kwargs
 
     def save(self, *args, **kwargs):
         self.date_updated = tz_now()
@@ -440,11 +476,31 @@ class AbstractFulfillmentOrderLine(models.Model):
         null=True, blank=True,
     )
     package = models.ForeignKey(
-        'oscar_mws.ShipmentPackage',
+        'oscar_mws.ShipmentPackage', related_name="order_lines",
         verbose_name=_("Fulfillment shipment package"),
-        related_name="order_lines",
-        null=True, blank=True,
-    )
+        null=True, blank=True)
+
+    quantity = models.PositiveIntegerField(_("Quantity"))
+    price_incl_tax = models.DecimalField(
+        _("Price incl. tax"), max_digits=12, decimal_places=2, null=True,
+        blank=True)
+    price_incl_tax = models.CharField(_("Currency"), max_length=3, blank=True)
+    comment = models.TextField(_("Comment"), blank=True)
+
+    def get_item_kwargs(self):
+        kwargs = {
+            'SellerSKU': self.line.product.amazon_profile.sku,
+            'SellerFulfillmentOrderItemId': self.order_item_id,
+            'Quantity': self.quantity,
+        }
+        if self.price_incl_tax and self.price_currency:
+            kwargs['PerUnitDeclaredValue'] = OrderedDict(
+                Value=self.price_incl_tax,
+                CurrencyCode=self.price_currency,
+            )
+        if self.comment:
+            kwargs['DisplayableComment'] = self.comment
+        return kwargs
 
     @property
     def status(self):
@@ -454,7 +510,7 @@ class AbstractFulfillmentOrderLine(models.Model):
 
     def __unicode__(self):
         return "Line {0} on {1}".format(
-            self.line.partner_sku,
+            self.line.product.amazon_profile.sku,
             self.fulfillment_order.fulfillment_id
         )
 

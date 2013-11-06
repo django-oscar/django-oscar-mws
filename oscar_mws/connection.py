@@ -8,8 +8,6 @@ from . import api
 
 logger = logging.getLogger('oscar_mws')
 
-MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
-
 
 _mws_connections = {}
 
@@ -28,6 +26,7 @@ class Connection(object):
     }
 
     def __init__(self, merchant_id):
+        MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
         try:
             merchant = MerchantAccount.objects.get(seller_id=merchant_id)
         except MerchantAccount.DoesNotExist:

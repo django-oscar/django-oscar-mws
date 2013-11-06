@@ -51,10 +51,10 @@ class OrderLineAdapter(BaseAdapter):
         self.line = line
 
     def get_seller_sku(self, **kwargs):
-        return self.line.partner_sku
+        return self.line.product.amazon_profile.sku
 
     def get_seller_fulfillment_order_item_id(self, **kwargs):
-        return self.line.partner_line_reference or self.line.partner_sku
+        return self.line.partner_line_reference or self.get_seller_sku()
 
     def get_quantity(self, **kwargs):
         return self.line.quantity
@@ -87,14 +87,12 @@ class OrderAdapter(BaseAdapter):
     OPTIONAL_FIELDS = [
         'NotificationEmailList',
     ]
-    line_adapter_class = OrderLineAdapter
 
     def __init__(self, order):
         super(OrderAdapter, self).__init__()
-        custom_adapter = getattr(settings, 'MWS_ORDER_LINE_ADAPTER', None)
-        if custom_adapter:
-            self.line_adapter_class = load_class(custom_adapter)
-
+        self.line_adapter_class = get_order_line_adapter()
+        # We store the line adapter instances in this dictionary to avoid
+        # re-initialising it several times.
         self.line_adapters = {}
 
         self.order = order
@@ -145,18 +143,6 @@ class OrderAdapter(BaseAdapter):
             comment = "Thanks for placing an order with us!"
         return comment
 
-    def get_destination_address(self, address, **kwargs):
-        return OrderedDict(
-            Name=address.name,
-            Line1=address.line1,
-            Line2=address.line2,
-            line3=address.line3,
-            City=address.city,
-            CountryCode=address.country.iso_3166_1_a2,
-            StateOrProvinceCode=address.state,
-            PostalCode=address.postcode,
-        )
-
     def get_shipping_speed_category(self, **kwargs):
         return MWS_DEFAULT_SHIPPING_SPEED
 
@@ -177,13 +163,7 @@ class OrderAdapter(BaseAdapter):
         if address is None:
             address = self.order.shipping_address
 
-        items = []
-        for line in self._lines[address.id]:
-            items.append(line.get_fields())
-
-        order_fields = {
-            'Items': items,
-        }
+        order_fields = {}
         order_fields.update(
             self.get_required_fields(address=address, **kwargs)
         )
@@ -191,3 +171,19 @@ class OrderAdapter(BaseAdapter):
             self.get_optional_fields(address=address, **kwargs)
         )
         return order_fields
+
+
+def get_order_adapter():
+    adapter_class = OrderAdapter
+    custom_adapter = getattr(settings, 'MWS_ORDER_ADAPTER', None)
+    if custom_adapter:
+        adapter_class = load_class(custom_adapter)
+    return adapter_class
+
+
+def get_order_line_adapter():
+    adapter_class = OrderLineAdapter
+    custom_adapter = getattr(settings, 'MWS_ORDER_LINE_ADAPTER', None)
+    if custom_adapter:
+        adapter_class = load_class(custom_adapter)
+    return adapter_class

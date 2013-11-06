@@ -2,6 +2,8 @@ import logging
 
 from django.utils.translation import ugettext_lazy as _
 
+from oscar_mws.fulfillment import gateway
+
 logger = logging.getLogger('oscar_mws')
 
 
@@ -13,6 +15,7 @@ def submit_order_to_mws(order, user, **kwargs):
 
     order_creator = FulfillmentOrderCreator()
     submitted_orders = order_creator.create_fulfillment_order(order)
+    gateway.submit_fulfillment_orders(submitted_orders)
 
     if not order_creator.errors:
         logger.info(

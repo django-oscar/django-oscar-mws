@@ -1,12 +1,12 @@
+from decimal import Decimal as D
+
 from django.conf import settings
 from django.db.models import get_model
 from django.utils.translation import ugettext_lazy as _
 from django.core.exceptions import ImproperlyConfigured
 
-from ..api import MWSError
+from . import adapters
 from ..utils import load_class
-from .adapters import OrderAdapter
-from ..connection import get_merchant_connection
 
 MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
@@ -14,15 +14,10 @@ FulfillmentOrderLine = get_model('oscar_mws', 'FulfillmentOrderLine')
 
 
 class FulfillmentOrderCreator(object):
-    order_adapter_class = OrderAdapter
 
-    def __init__(self, order_adapter_class=None):
-        custom_adapter = getattr(settings, 'MWS_ORDER_ADAPTER', None)
+    def __init__(self):
+        self.order_adapter_class = adapters.get_order_adapter()
         self.errors = {}
-
-        if custom_adapter:
-            self.order_adapter_class = load_class(custom_adapter)
-
         try:
             self.find_fulfillment_merchant = load_class(
                 getattr(settings, 'MWS_FULFILLMENT_MERCHANT_FINDER', None)
@@ -43,6 +38,7 @@ class FulfillmentOrderCreator(object):
         fulfillment_orders = []
         for address in adapter.addresses:
             fulfillment_id = adapter.get_seller_fulfillment_order_id(address)
+            order_kw = adapter.get_fields(address=address)
 
             merchant = self.find_fulfillment_merchant(order, address)
             if not merchant:
@@ -54,47 +50,40 @@ class FulfillmentOrderCreator(object):
 
             try:
                 fulfillment_order = FulfillmentOrder.objects.get(
+                    fulfillment_id=fulfillment_id, order=order,
+                    merchant=merchant)
+            except FulfillmentOrder.DoesNotExist:
+                fulfillment_order = FulfillmentOrder.objects.create(
                     fulfillment_id=fulfillment_id,
                     order=order,
                     merchant=merchant,
+                    shipping_address=address,
+                    shipping_speed=order_kw.get('ShippingSpeedCategory'),
+                    comments=order_kw.get('DisplayableOrderComment'),
                 )
-            except FulfillmentOrder.DoesNotExist:
-                fulfillment_order = FulfillmentOrder(
-                    fulfillment_id=fulfillment_id,
-                )
-
-                outbound_api = get_merchant_connection(
-                    merchant_id=merchant.seller_id
-                ).outbound
-                try:
-                    order_kw = adapter.get_fields(address=address)
-                    outbound_api.create_fulfillment_order(
-                        order_id=order_kw.get('SellerFulfillmentOrderId'),
-                        order_date=order_kw.get('DisplayableOrderDateTime'),
-                        destination_address=order_kw.get('DestinationAddress'),
-                        displayable_order_id=order_kw.get(
-                            'DisplayableOrderId'
-                        ),
-                        items=order_kw.get('Items'),
-                        shipping_speed=order_kw.get('ShippingSpeedCategory'),
-                        comments=order_kw.get('DisplayableOrderComment'),
-                    )
-                except MWSError as exc:
-                    self.errors[fulfillment_id] = exc.message
-                    continue
-
-                fulfillment_order.order = order
-                fulfillment_order.merchant = merchant
-                fulfillment_order.save()
             else:
-                self.errors[fulfillment_id] = _("Order already submitted.")
+                self.errors[fulfillment_id] = _("Order already created.")
 
             fulfillment_orders.append(fulfillment_order)
 
-            for la in adapter.get_lines(address=address):
-                FulfillmentOrderLine.objects.get_or_create(
-                    line=la.line,
-                    fulfillment_order=fulfillment_order,
-                    order_item_id=la.get_seller_fulfillment_order_item_id(),
-                )
+            for line_adapter in adapter.get_lines(address=address):
+                self.create_fulfillment_line(line_adapter, fulfillment_order)
         return fulfillment_orders
+
+    def create_fulfillment_line(self, line_adapter, fulfillment_order):
+        try:
+            line = FulfillmentOrderLine.objects.get(
+                line=line_adapter.line, fulfillment_order=fulfillment_order)
+        except FulfillmentOrderLine.DoesNotExist:
+            line = FulfillmentOrderLine(
+                line=line_adapter.line, fulfillment_order=fulfillment_order)
+
+        line_kwargs = line_adapter.get_fields()
+        line.order_item_id = line_adapter.get_seller_fulfillment_order_item_id()
+        line.quantity = line_kwargs.get('Quantity')
+        line.comment = line_kwargs.get('DisplayableOrderComment', '')
+        price = line_kwargs.get('PerUnitDeclaredValue')
+        if price:
+            line.price_incl_tax = D(price.get('Value'))
+            line.price_currency = price.get('Currency')
+        line.save()

@@ -23,6 +23,25 @@ FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 FulfillmentShipment = get_model('oscar_mws', 'FulfillmentShipment')
 
 
+def submit_fulfillment_orders(orders):
+    for order in orders:
+        submit_fulfillment_order(order)
+
+
+def submit_fulfillment_order(fulfillment_order):
+    outbound_api = get_merchant_connection(
+        merchant_id=fulfillment_order.merchant.seller_id
+    ).outbound
+    try:
+        outbound_api.create_fulfillment_order(
+            **fulfillment_order.get_order_kwargs())
+    except MWSError:
+        fulfillment_order.status = fulfillment_order.SUBMISSION_FAILED
+    else:
+        fulfillment_order.status = fulfillment_order.SUBMITTED
+    fulfillment_order.save()
+
+
 def update_fulfillment_order(fulfillment_order):
     outbound_api = get_merchant_connection(
         fulfillment_order.merchant.seller_id

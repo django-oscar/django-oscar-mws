@@ -27,22 +27,6 @@ class ProductClassFactory(factory.DjangoModelFactory):
     name = factory.Sequence(lambda n: 'Dummy product class {}'.format(n))
 
 
-class ProductFactory(factory.DjangoModelFactory):
-    FACTORY_FOR = get_model('catalogue', 'Product')
-
-    title = 'Dummy Product'
-    product_class = factory.SubFactory(ProductClassFactory)
-
-    @factory.post_generation
-    def stockrecord(self, created, extracted, **kwargs):
-        if not created:
-            return
-        if not extracted:
-            kwargs.setdefault('product', self)
-            extracted = StockRecordFactory(**kwargs)
-        self.stockrecords.add(extracted)
-
-
 class BasketFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('basket', 'Basket')
 
@@ -54,7 +38,25 @@ class AmazonProfileFactory(factory.DjangoModelFactory):
 
     sku = factory.Sequence(lambda n: "sku_{}".format(str(time())[:10]))
     release_date = now()
-    product = factory.SubFactory(ProductFactory)
+    product = factory.SubFactory(
+        'oscar_mws.test.factories.ProductFactory', amazon_profile=None)
+
+
+class ProductFactory(factory.DjangoModelFactory):
+    FACTORY_FOR = get_model('catalogue', 'Product')
+
+    title = 'Dummy Product'
+    product_class = factory.SubFactory(ProductClassFactory)
+    amazon_profile = factory.RelatedFactory(AmazonProfileFactory, 'product')
+
+    @factory.post_generation
+    def stockrecord(self, created, extracted, **kwargs):
+        if not created:
+            return
+        if not extracted:
+            kwargs.setdefault('product', self)
+            extracted = StockRecordFactory(**kwargs)
+        self.stockrecords.add(extracted)
 
 
 class MerchantAccountFactory(factory.DjangoModelFactory):
@@ -73,14 +75,6 @@ class AmazonMarketplaceFactory(factory.DjangoModelFactory):
     region = MWS_MARKETPLACE_US
     marketplace_id = 'FAKEMARKETPLACEID'
     merchant = factory.SubFactory(MerchantAccountFactory)
-
-
-class FulfillmentOrderFactory(factory.DjangoModelFactory):
-    FACTORY_FOR = get_model('oscar_mws', 'FulfillmentOrder')
-
-    fulfillment_id = 'extern_id_1154539615776'
-    merchant = factory.SubFactory(MerchantAccountFactory)
-    date_updated = now()
 
 
 class FeedSubmissionFactory(factory.DjangoModelFactory):
@@ -113,3 +107,22 @@ class ShippingAddressFactory(factory.DjangoModelFactory):
     state = 'RI'
     country = factory.SubFactory(CountryFactory)
     postcode = '12345'
+
+
+class OrderFactory(factory.DjangoModelFactory):
+    FACTORY_FOR = get_model('order', 'Order')
+
+    number = factory.Sequence(lambda n: "{}".format(10000 + n))
+    site = factory.LazyAttribute(lambda a: get_model('sites', 'Site').objects.all()[0])
+    total_incl_tax = D('12.99')
+    total_excl_tax = D('12.99')
+
+
+class FulfillmentOrderFactory(factory.DjangoModelFactory):
+    FACTORY_FOR = get_model('oscar_mws', 'FulfillmentOrder')
+
+    fulfillment_id = 'extern_id_1154539615776'
+    merchant = factory.SubFactory(MerchantAccountFactory)
+    date_updated = now()
+    shipping_address = factory.SubFactory(ShippingAddressFactory)
+    order = factory.SubFactory(OrderFactory)
