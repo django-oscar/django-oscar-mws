@@ -230,11 +230,9 @@ def update_inventory(products):
                     partner__amazon_merchant__seller_id=seller_id,
                 )
             except StockRecord.DoesNotExist:
-                logger.error(
-                    "could not find stock record for SKU {}".format(
-                        inventory.SellerSKU
-                    )
-                )
+                logger.error("could not find stock record for SKU {}".format(
+                    inventory.SellerSKU))
             else:
-                stockrecord.num_in_stock = inventory.InStockSupplyQuantity
+                stockrecord.set_amazon_supply_quantity(
+                    inventory.InStockSupplyQuantity)
                 stockrecord.save()

@@ -95,6 +95,7 @@ class StockRecordFactory(factory.DjangoModelFactory):
 
     price_excl_tax = D('12.99')
     partner = factory.SubFactory(PartnerFactory)
+    product = factory.SubFactory(ProductFactory)
 
 
 class ShippingAddressFactory(factory.DjangoModelFactory):
@@ -113,7 +114,9 @@ class OrderFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('order', 'Order')
 
     number = factory.Sequence(lambda n: "{}".format(10000 + n))
-    site = factory.LazyAttribute(lambda a: get_model('sites', 'Site').objects.all()[0])
+    site = factory.LazyAttribute(
+        lambda a: get_model('sites', 'Site').objects.all()[0]
+    )
     total_incl_tax = D('12.99')
     total_excl_tax = D('12.99')
 
