@@ -4,12 +4,14 @@ from collections import defaultdict
 from dateutil import parser as du_parser
 
 from django.db.models import get_model
+from django.core.exceptions import ObjectDoesNotExist
 
 from ..api import MWSObject, MWSError
 from ..connection import get_merchant_connection
 
 logger = logging.getLogger('oscar_mws')
 
+Partner = get_model('partner', 'Partner')
 Product = get_model('catalogue', 'Product')
 StockRecord = get_model('partner', 'StockRecord')
 
@@ -227,12 +229,28 @@ def update_inventory(products):
             try:
                 stockrecord = StockRecord.objects.get(
                     product__amazon_profile__sku=inventory.SellerSKU,
-                    partner__amazon_merchant__seller_id=seller_id,
-                )
+                    partner__amazon_merchant__seller_id=seller_id)
             except StockRecord.DoesNotExist:
-                logger.error("could not find stock record for SKU {}".format(
-                    inventory.SellerSKU))
-            else:
-                stockrecord.set_amazon_supply_quantity(
-                    inventory.InStockSupplyQuantity)
-                stockrecord.save()
+                # It seems that there's no stock record available for the
+                # product that is linked to the merchant account. Let's try
+                # and create a new stockrecord for this product and merchant's
+                # partner. If that fails, we are out of options and just
+                # continue with the next one
+                try:
+                    stockrecord = StockRecord.objects.create(
+                        product=Product.objects.get(
+                            amazon_profile__sku=inventory.SellerSKU),
+                        partner=Partner.objects.get(
+                            amazon_merchant__seller_id=seller_id),
+                    )
+                except ObjectDoesNotExist:
+                    logger.error(
+                        "no stockrecord and partner found for given product "
+                        "and merchant", extra={
+                            'seller_sku': inventory.SellerSKU,
+                            'seller_id': seller_id})
+                    continue
+
+            stockrecord.set_amazon_supply_quantity(
+                inventory.InStockSupplyQuantity)
+            stockrecord.save()
