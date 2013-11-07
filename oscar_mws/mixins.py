@@ -1,9 +1,6 @@
 import logging
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils.translation import ugettext_lazy as _
-
-from oscar.apps.partner.exceptions import InvalidStockAdjustment
 
 logger = logging.getLogger('oscar_mws')
 
@@ -40,17 +37,12 @@ class AmazonStockTrackingMixin(object):
         This is used when an item is shipped. We remove the original
         allocation and adjust the number in stock accordingly
         """
-        if not self.is_allocation_consumption_possible(quantity):
-            raise InvalidStockAdjustment(
-                _('Invalid stock consumption request'))
         if self.is_mws_record:
             logger.debug(
                 'stock record is MWS record. Skipping consume allocation on '
                 'stock record ', extra={'stockrecord_id': unicode(self.id)})
             return
-        self.num_allocated -= quantity
-        self.num_in_stock -= quantity
-        self.save()
+        super(AmazonStockTrackingMixin, self).consume_allocation(quantity)
     consume_allocation.alters_data = True
 
     @property
