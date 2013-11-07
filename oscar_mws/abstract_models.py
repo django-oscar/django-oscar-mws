@@ -9,8 +9,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from lxml.builder import E
 
-from .fulfillment.adapters import get_order_line_adapter, get_order_adapter
-
 Partner = models.get_model('partner', 'Partner')
 StockRecord = models.get_model('partner', 'StockRecord')
 

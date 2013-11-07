@@ -1,0 +1,44 @@
+<GetFulfillmentOrderResponse xmlns="http://mws.amazonaws.com/FulfillmentOutboundShipment/2010-10-01/">
+  <GetFulfillmentOrderResult>
+    <FulfillmentOrderItem>
+      <member>
+        <SellerSKU>FAKE_PRODUCT_SKU</SellerSKU>
+        <SellerFulfillmentOrderItemId>FAKE_SELLER_SKU</SellerFulfillmentOrderItemId>
+        <EstimatedShipDateTime>2013-11-08T23:59:59Z</EstimatedShipDateTime>
+        <OrderItemDisposition>Sellable</OrderItemDisposition>
+        <UnfulfillableQuantity>0</UnfulfillableQuantity>
+        <CancelledQuantity>0</CancelledQuantity>
+        <Quantity>1</Quantity>
+        <FulfillmentNetworkSKU>X0006THZA1</FulfillmentNetworkSKU>
+        <EstimatedArrivalDateTime>2013-11-16T23:59:59Z</EstimatedArrivalDateTime>
+      </member>
+    </FulfillmentOrderItem>
+    <FulfillmentOrder>
+      <ShippingSpeedCategory>Standard</ShippingSpeedCategory>
+      <NotificationEmailList>
+        <member>customer@example.com</member>
+      </NotificationEmailList>
+      <StatusUpdatedDateTime>2013-11-07T02:29:14Z</StatusUpdatedDateTime>
+      <SellerFulfillmentOrderId>1000012345</SellerFulfillmentOrderId>
+      <DestinationAddress>
+        <PostalCode>12345</PostalCode>
+        <Name>Peter Griffin</Name>
+        <CountryCode>US</CountryCode>
+        <StateOrProvinceCode>RI</StateOrProvinceCode>
+        <Line1>31 Spooner Street</Line1>
+        <City>Quahog</City>
+      </DestinationAddress>
+      <FulfillmentMethod>Consumer</FulfillmentMethod>
+      <DisplayableOrderDateTime>2013-11-07T02:14:03Z</DisplayableOrderDateTime>
+      <FulfillmentPolicy>FillOrKill</FulfillmentPolicy>
+      <ReceivedDateTime>2013-11-07T02:14:09Z</ReceivedDateTime>
+      <DisplayableOrderId>919-6031603-3118776</DisplayableOrderId>
+      <DisplayableOrderComment>Thanks for placing an order with us!</DisplayableOrderComment>
+      <FulfillmentOrderStatus>PLANNING</FulfillmentOrderStatus>
+    </FulfillmentOrder>
+    <FulfillmentShipment/>
+  </GetFulfillmentOrderResult>
+  <ResponseMetadata>
+    <RequestId>88888888-2222-3333-4444-999999999999</RequestId>
+  </ResponseMetadata>
+</GetFulfillmentOrderResponse>

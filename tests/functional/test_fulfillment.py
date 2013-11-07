@@ -31,15 +31,46 @@ class TestCreateFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
 
 class TestUpdatingFulfillmentOrders(mixins.DataLoaderMixin, TestCase):
 
+    def setUp(self):
+        super(TestUpdatingFulfillmentOrders, self).setUp()
+        self.order = factories.FulfillmentOrderFactory(
+            fulfillment_id='1000012345', status='SUBMITTED')
+
     @httpretty.activate
     def test_updates_a_single_order_status(self):
         httpretty.register_uri(
-            httpretty.POST,
-            'https://mws.amazonservices.com/',
+            httpretty.GET,
+            'https://mws.amazonservices.com/FulfillmentOutboundShipment/2010-10-01',
             responses=[httpretty.Response(
                 self.load_data('get_fulfillment_order_response.xml'),
             )],
         )
+        order = update_fulfillment_order(self.order)
+        self.assertEquals(order.status, order.COMPLETE)
+
+        shipments = FulfillmentShipment.objects.all()
+        self.assertEquals(len(shipments), 1)
+        self.assertEquals(shipments[0].status, 'SHIPPED')
+        self.assertEquals(shipments[0].shipment_events.count(), 1)
+
+        self.assertEquals(shipments[0].packages.count(), 1)
+        package = shipments[0].packages.all()[0]
+        self.assertEquals(package.package_number, 2341234)
+        self.assertEquals(package.carrier_code, 'Magic Parcels')
+        self.assertEquals(package.tracking_number, 'MPT_1234')
+
+    @httpretty.activate
+    def test_updates_an_order_without_shipment_info(self):
+        httpretty.register_uri(
+            httpretty.GET,
+            'https://mws.amazonservices.com/FulfillmentOutboundShipment/2010-10-01',
+            responses=[httpretty.Response(
+                self.load_data(
+                    'get_fulfillment_order_response_without_shipments.xml'))],
+        )
+        order = update_fulfillment_order(self.order)
+        self.assertEquals(order.status, order.PLANNING)
+        self.assertEquals(FulfillmentShipment.objects.count(), 0)
 
 
 class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):

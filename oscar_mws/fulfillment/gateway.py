@@ -23,6 +23,99 @@ FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 FulfillmentShipment = get_model('oscar_mws', 'FulfillmentShipment')
 
 
+def _update_fulfillment_lines(item, shipment, shipping_event):
+    fulfillment_lines = Line.objects.filter(
+        fulfillment_line__order_item_id=item.SellerSKU)
+    for fline in fulfillment_lines:
+        try:
+            seq = ShippingEventQuantity.objects.get(
+                event=shipping_event, line=fline)
+        except ShippingEventQuantity.DoesNotExist:
+            seq = ShippingEventQuantity(
+                event=shipping_event, line=fline)
+        seq.quantity = int(item.Quantity)
+        seq.save()
+
+        fline.shipment = shipment
+        try:
+            fline.package = shipment.packages.get(
+                package_number=item.PackageNumber
+            )
+        except ShipmentPackage.DoesNotExist:
+            pass
+        fline.save()
+
+
+def _update_shipment(shipment_data, fulfillment_order):
+    try:
+        shipment = FulfillmentShipment.objects.get(
+            shipment_id=shipment_data.AmazonShipmentId
+        )
+    except FulfillmentShipment.DoesNotExist:
+        shipment = FulfillmentShipment.objects.create(
+            shipment_id=shipment_data.AmazonShipmentId,
+            order=fulfillment_order.order,
+        )
+
+    has_status_changed = bool(
+        shipment.status != shipment_data.FulfillmentShipmentStatus
+    )
+
+    shipment.fulfillment_center_id = shipment_data.FulfillmentCenterId
+    shipment.status = shipment_data.FulfillmentShipmentStatus
+
+    if shipment_data.EstimatedArrivalDateTime:
+        shipment.date_estimated_arrival = du_parser.parse(
+            shipment_data.EstimatedArrivalDateTime
+        )
+
+    if shipment_data.ShippingDateTime:
+        shipment.date_shipped = du_parser.parse(
+            shipment_data.ShippingDateTime
+        )
+    shipment.save()
+
+    if not has_status_changed:
+        logger.info('status for fulfillment shipment unchanged, '
+                    'no shipping event created', extra={
+                'fulfillment_id': fulfillment_order.fulfillment_id,
+                'shipment_id': shipment.shipment_id,
+        })
+        return
+
+    event_type, __ = ShippingEventType.objects.get_or_create(
+        name=shipment_data.FulfillmentShipmentStatus
+    )
+    shipping_event = ShippingEvent.objects.create(
+        order=fulfillment_order.order,
+        event_type=event_type,
+    )
+    shipment.shipment_events.add(shipping_event)
+
+    shipping_note = []
+    packages = shipment_data.get('FulfillmentShipmentPackage') or MWSObject()
+    for fpackage in packages.get_list('member'):
+        ShipmentPackage.objects.get_or_create(
+            package_number=fpackage.PackageNumber,
+            tracking_number=fpackage.TrackingNumber,
+            carrier_code=fpackage.CarrierCode,
+            fulfillment_shipment=shipment,
+        )
+        shipping_note.append(
+            '* Shipped package via {0} with tracking number {1}'.format(
+                fpackage.CarrierCode,
+                fpackage.TrackingNumber,
+            )
+        )
+    if shipping_note:
+        shipping_event.notes = "\n".join(shipping_note)
+        shipping_event.save()
+
+    items = shipment_data.get('FulfillmentShipmentItem') or MWSObject()
+    for item in items.get_list('member'):
+        _update_fulfillment_lines(item, shipment, shipping_event)
+
+
 def submit_fulfillment_orders(orders):
     for order in orders:
         submit_fulfillment_order(order)
@@ -43,6 +136,15 @@ def submit_fulfillment_order(fulfillment_order):
 
 
 def update_fulfillment_order(fulfillment_order):
+    """
+    Update the provided *fulfillment_order* with the latest details from MWS.
+    Details for the given *fulfillment_order* are requested from MWS, parsed
+    and stored in the database.
+    It creates/updates ``FulfillmentOrder``, ``FulfillmentShipment`` and
+    ``FulfillmentShipmentPackage`` as well as affected ``FulfillmentOrderLine``
+    items. As a side-effect, a ``ShippingEvent`` is created for every shipment
+    item received from MWS that changes the status of the corresponding model.
+    """
     outbound_api = get_merchant_connection(
         fulfillment_order.merchant.seller_id
     ).outbound
@@ -50,124 +152,26 @@ def update_fulfillment_order(fulfillment_order):
         response = outbound_api.get_fulfillment_order(
             order_id=fulfillment_order.fulfillment_id,
         ).parsed
-    except MWSError as exc:
+    except MWSError:
         logger.error(
-            "[{exc.error_code}]: {exc.reason} : {exc.message} (Request ID: "
-            "{exc.request_id})".format(exc=exc)
-        )
+            "updating fulfillment order failed", exc_info=1,
+            extra={'fulfillment_id': fulfillment_order.fulfillment_id})
         return
 
     forder = response.FulfillmentOrder
-    #assert response.SellerFulfillmentOrderId == fulfillment_order.fulfillment_id
-
-    reported_date = du_parser.parse(forder.StatusUpdatedDateTime)
-    if reported_date == fulfillment_order.date_updated:
-        return fulfillment_order
-
     fulfillment_order.status = forder.FulfillmentOrderStatus
     fulfillment_order.save()
 
-    for fshipment in response.FulfillmentShipment.get_list('member'):
-        try:
-            shipment = FulfillmentShipment.objects.get(
-                shipment_id=fshipment.AmazonShipmentId
-            )
-        except FulfillmentShipment.DoesNotExist:
-            shipment = FulfillmentShipment.objects.create(
-                shipment_id=fshipment.AmazonShipmentId,
-                order=fulfillment_order.order,
-            )
-
-        has_status_changed = bool(
-            shipment.status != fshipment.FulfillmentShipmentStatus
-        )
-
-        shipment.fulfillment_center_id = fshipment.FulfillmentCenterId
-        shipment.status = fshipment.FulfillmentShipmentStatus
-
-        if fshipment.EstimatedArrivalDateTime:
-            shipment.date_estimated_arrival = du_parser.parse(
-                fshipment.EstimatedArrivalDateTime
-            )
-
-        if fshipment.ShippingDateTime:
-            shipment.date_shipped = du_parser.parse(
-                fshipment.ShippingDateTime
-            )
-        shipment.save()
-
-        if not has_status_changed:
-            continue
-
-        event_type, __ = ShippingEventType.objects.get_or_create(
-            name=fshipment.FulfillmentShipmentStatus
-        )
-        shipping_event = ShippingEvent.objects.create(
-            order=fulfillment_order.order,
-            event_type=event_type,
-
-        )
-
-        shipping_note = []
-        packages = fshipment.get('FulfillmentShipmentPackage', MWSObject())
-        for fpackage in packages.get_list('member'):
-            ShipmentPackage.objects.get_or_create(
-                package_number=fpackage.PackageNumber,
-                tracking_number=fpackage.TrackingNumber,
-                carrier_code=fpackage.CarrierCode,
-                fulfillment_shipment=shipment,
-            )
-            shipping_note.append(
-                '* Shipped package via {0} with tracking number {1}'.format(
-                    fpackage.CarrierCode,
-                    fpackage.TrackingNumber,
-                )
-            )
-        if shipping_note:
-            shipping_event.notes = "\n".join(shipping_note)
-            shipping_event.save()
-
-        items = fshipment.get('FulfillmentShipmentItem', MWSObject())
-        for item in items.get_list('member'):
-            fulfillment_lines = Line.objects.filter(
-                fulfillment_line__order_item_id=item.SellerSKU
-            )
-            for fline in fulfillment_lines:
-                try:
-                    seq = ShippingEventQuantity.objects.get(
-                        event=shipping_event,
-                        line=fline,
-                    )
-                except ShippingEventQuantity.DoesNotExist:
-                    seq = ShippingEventQuantity(
-                        event=shipping_event,
-                        line=fline,
-                    )
-                seq.quantity = int(item.Quantity)
-                seq.save()
-
-                fline.shipment = shipment
-                try:
-                    fline.package = shipment.packages.get(
-                        package_number=item.PackageNumber
-                    )
-                except ShipmentPackage.DoesNotExist:
-                    pass
-                fline.save()
-
+    shipments = response.get('FulfillmentShipment') or MWSObject()
+    for fshipment in shipments.get_list('member'):
+        _update_shipment(fshipment, fulfillment_order)
     return fulfillment_order
 
 
 def update_fulfillment_orders(fulfillment_orders):
     processed_orders = []
     for order in fulfillment_orders:
-        try:
-            processed_orders.append(update_fulfillment_order(order))
-        except MWSError as exc:
-            logger.error(
-                "[{exc.error_code}]: {exc.reason} : {exc.message} "
-                "(Request ID: {exc.request_id})".format(exc=exc)
-            )
+        processed_orders.append(update_fulfillment_order(order))
     return processed_orders
 
 
@@ -180,11 +184,8 @@ def get_all_fulfillment_orders(merchant, query_datetime=None):
         response = get_merchant_connection(
             merchant.seller_id
         ).list_all_fulfillment_orders(**kwargs)
-    except MWSError as exc:
-        logger.error(
-            "[{exc.error_code}]: {exc.reason} : {exc.message} "
-            "(Request ID: {exc.request_id})".format(exc=exc)
-        )
+    except MWSError:
+        logger.error("requesting all fulfillment orders failed", exc_info=1)
         return []
 
     processed_orders = []
