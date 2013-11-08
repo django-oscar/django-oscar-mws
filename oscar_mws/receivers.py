@@ -2,8 +2,6 @@ import logging
 
 from django.utils.translation import ugettext_lazy as _
 
-from oscar_mws.fulfillment import gateway
-
 logger = logging.getLogger('oscar_mws')
 
 
@@ -11,6 +9,10 @@ def submit_order_to_mws(order, user, **kwargs):
     if kwargs.get('raw', False):
         return
 
+    # these modules have to be imported here because they rely on loading
+    # models from oscar_mws using get_model which are not fully loaded at this
+    # point because the receivers module is imported into models.py
+    from oscar_mws.fulfillment import gateway
     from oscar_mws.fulfillment.creator import FulfillmentOrderCreator
 
     order_creator = FulfillmentOrderCreator()
