@@ -110,6 +110,16 @@ class ShippingAddressFactory(factory.DjangoModelFactory):
     postcode = '12345'
 
 
+class OrderLineFactory(factory.DjangoModelFactory):
+    FACTORY_FOR = get_model('order', 'Line')
+
+    product = factory.SubFactory(ProductFactory)
+    line_price_excl_tax = D('12.99')
+    line_price_incl_tax = D('12.99')
+    line_price_before_discounts_incl_tax = D('12.99')
+    line_price_before_discounts_excl_tax = D('12.99')
+
+
 class OrderFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('order', 'Order')
 
@@ -120,6 +130,8 @@ class OrderFactory(factory.DjangoModelFactory):
     total_incl_tax = D('12.99')
     total_excl_tax = D('12.99')
 
+    shipping_address = factory.SubFactory(ShippingAddressFactory)
+
 
 class FulfillmentOrderFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('oscar_mws', 'FulfillmentOrder')
@@ -127,5 +139,5 @@ class FulfillmentOrderFactory(factory.DjangoModelFactory):
     fulfillment_id = 'extern_id_1154539615776'
     merchant = factory.SubFactory(MerchantAccountFactory)
     date_updated = now()
-    shipping_address = factory.SubFactory(ShippingAddressFactory)
     order = factory.SubFactory(OrderFactory)
+    shipping_address = factory.SubFactory(ShippingAddressFactory)

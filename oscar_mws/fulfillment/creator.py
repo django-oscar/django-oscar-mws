@@ -83,7 +83,7 @@ class FulfillmentOrderCreator(object):
         line.quantity = line_kwargs.get('Quantity')
         line.comment = line_kwargs.get('DisplayableOrderComment', '')
         price = line_kwargs.get('PerUnitDeclaredValue')
-        if price:
+        if price and price.get('Value'):
             line.price_incl_tax = D(price.get('Value'))
             line.price_currency = price.get('Currency')
         line.save()

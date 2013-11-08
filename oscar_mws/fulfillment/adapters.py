@@ -1,3 +1,4 @@
+from decimal import Decimal as D
 from collections import OrderedDict
 
 from django.conf import settings
@@ -60,9 +61,19 @@ class OrderLineAdapter(BaseAdapter):
         return self.line.quantity
 
     def get_per_unit_declared_value(self, **kwargs):
+        if not self.line.unit_price_incl_tax or not self.line.quantity:
+            return None
+
+        # The unit price is not mandatory on the line model which means we
+        # can't be sure that we have a unit price here. Therefore, we are
+        # falling back to calculating an estimated price per unit from its
+        # quantity and line price.
+        unit_price = self.line.unit_price_incl_tax
+        if not unit_price:
+            unit_price = self.line.line_price_incl_tax / self.line.quantity
         return OrderedDict(
             CurrencyCode=settings.OSCAR_DEFAULT_CURRENCY,
-            Value=unicode(self.line.unit_price_incl_tax),
+            Value=unicode(unit_price),
         )
 
     def get_displayable_comment(self, **kwargs):

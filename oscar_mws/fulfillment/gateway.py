@@ -6,6 +6,8 @@ from dateutil import parser as du_parser
 from django.db.models import get_model
 from django.core.exceptions import ObjectDoesNotExist
 
+from oscar.core.loading import get_class
+
 from ..api import MWSObject, MWSError
 from ..connection import get_merchant_connection
 
@@ -19,33 +21,12 @@ Line = get_model('order', 'Line')
 ShippingEvent = get_model('order', 'ShippingEvent')
 ShippingEventType = get_model('order', 'ShippingEventType')
 ShippingEventQuantity = get_model('order', 'ShippingEventQuantity')
+EventHandler = get_class('order.processing', 'EventHandler')
 
 ShipmentPackage = get_model('oscar_mws', 'ShipmentPackage')
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
+FulfillmentOrderLine = get_model('oscar_mws', 'FulfillmentOrderLine')
 FulfillmentShipment = get_model('oscar_mws', 'FulfillmentShipment')
-
-
-def _update_fulfillment_lines(item, shipment, shipping_event):
-    fulfillment_lines = Line.objects.filter(
-        fulfillment_line__order_item_id=item.SellerSKU)
-    for fline in fulfillment_lines:
-        try:
-            seq = ShippingEventQuantity.objects.get(
-                event=shipping_event, line=fline)
-        except ShippingEventQuantity.DoesNotExist:
-            seq = ShippingEventQuantity(
-                event=shipping_event, line=fline)
-        seq.quantity = int(item.Quantity)
-        seq.save()
-
-        fline.shipment = shipment
-        try:
-            fline.package = shipment.packages.get(
-                package_number=item.PackageNumber
-            )
-        except ShipmentPackage.DoesNotExist:
-            pass
-        fline.save()
 
 
 def _update_shipment(shipment_data, fulfillment_order):
@@ -88,11 +69,6 @@ def _update_shipment(shipment_data, fulfillment_order):
     event_type, __ = ShippingEventType.objects.get_or_create(
         name=shipment_data.FulfillmentShipmentStatus
     )
-    shipping_event = ShippingEvent.objects.create(
-        order=fulfillment_order.order,
-        event_type=event_type,
-    )
-    shipment.shipment_events.add(shipping_event)
 
     shipping_note = []
     packages = shipment_data.get('FulfillmentShipmentPackage') or MWSObject()
@@ -109,13 +85,51 @@ def _update_shipment(shipment_data, fulfillment_order):
                 fpackage.TrackingNumber,
             )
         )
-    if shipping_note:
-        shipping_event.notes = "\n".join(shipping_note)
-        shipping_event.save()
+
+    event_handler = EventHandler()
 
     items = shipment_data.get('FulfillmentShipmentItem') or MWSObject()
     for item in items.get_list('member'):
-        _update_fulfillment_lines(item, shipment, shipping_event)
+        fulfillment_lines = FulfillmentOrderLine.objects.filter(
+            fulfillment_order=fulfillment_order,
+            order_item_id=item.SellerFulfillmentOrderItemId)
+
+        shipping_lines = []
+        shipping_quantities = []
+        quantity = int(item.Quantity)
+        for fline in fulfillment_lines:
+            if quantity <= 0:
+                break
+            if quantity >= fline.quantity:
+                shipped_quantity = fline.quantity
+            else:
+                shipped_quantity = quantity
+            shipping_lines.append(fline.line)
+            shipping_quantities.append(shipped_quantity)
+
+            quantity = quantity - shipped_quantity
+            fline.shipment = shipment
+            try:
+                fline.package = shipment.packages.get(
+                    package_number=item.PackageNumber)
+            except ShipmentPackage.DoesNotExist:
+                pass
+            fline.save()
+
+        if shipping_note:
+            reference = '\n'.join(shipping_note)
+        else:
+            reference = None
+
+        event_handler.validate_shipping_event(
+            order=fulfillment_order.order, event_type=event_type,
+            lines=shipping_lines, line_quantities=shipping_quantities,
+            reference=reference)
+        event = event_handler.create_shipping_event(
+            order=fulfillment_order.order, event_type=event_type,
+            lines=shipping_lines, line_quantities=shipping_quantities,
+            reference=reference)
+        shipment.shipment_events.add(event)
 
 
 def submit_fulfillment_orders(orders):
