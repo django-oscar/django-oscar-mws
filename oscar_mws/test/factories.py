@@ -13,6 +13,14 @@ from oscar_mws import MWS_MARKETPLACE_US
 Selector = get_class('partner.strategy', 'Selector')
 
 
+class UserFactory(factory.DjangoModelFactory):
+    FACTORY_FOR = get_model('auth', 'User')
+
+    first_name = 'Peter'
+    last_name = 'Griffin'
+    email = 'peter@petoria.pt'
+    password = 'plaintext'
+
 class CountryFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('address', 'Country')
 

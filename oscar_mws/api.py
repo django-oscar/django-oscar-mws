@@ -267,10 +267,11 @@ class MWS(object):
         """
         Calculate MWS signature to interface with Amazon
         """
-        sig_data = method + '\n' + self.domain.replace('https://', '').lower() + '\n' + self.uri + '\n' + request_description
+        sig_data = "{}\n{}\n{}\n{}".format(
+            method, self.domain.replace('https://', '').lower(), self.uri,
+            request_description)
         return base64.b64encode(
-            hmac.new(str(self.secret_key), sig_data, hashlib.sha256).digest()
-        )
+            hmac.new(str(self.secret_key), sig_data, hashlib.sha256).digest())
 
     def get_timestamp(self):
         """
@@ -293,10 +294,8 @@ class MWS(object):
         """
         params = {}
         if values is not None:
-            if not param.endswith('.'):
-                param = "%s." % param
-            for num, value in enumerate(values):
-                params['%s%d' % (param, (num + 1))] = value
+            for num, value in enumerate(values, 1):
+                params['{}.{}'.format(param, num)] = value
         return params
 
     def dict_param(self, param, dct):
@@ -326,7 +325,7 @@ class Feeds(MWS):
         data = dict(Action='SubmitFeed',
                     FeedType=feed_type,
                     PurgeAndReplace=purge)
-        data.update(self.enumerate_param('MarketplaceIdList.Id.',
+        data.update(self.enumerate_param('MarketplaceIdList.Id',
                                          marketplaceids))
         md = calc_md5(feed)
         return self.make_request(data, method="POST", body=feed,
@@ -346,8 +345,8 @@ class Feeds(MWS):
                     SubmittedFromDate=fromdate,
                     SubmittedToDate=todate,)
         data.update(self.enumerate_param('FeedSubmissionIdList.Id', feedids))
-        data.update(self.enumerate_param('FeedTypeList.Type.', feedtypes))
-        data.update(self.enumerate_param('FeedProcessingStatusList.Status.',
+        data.update(self.enumerate_param('FeedTypeList.Type', feedtypes))
+        data.update(self.enumerate_param('FeedProcessingStatusList.Status',
                                          processingstatuses))
         return self.make_request(data)
 
@@ -361,10 +360,10 @@ class Feeds(MWS):
         data = dict(Action='GetFeedSubmissionCount',
                     SubmittedFromDate=fromdate,
                     SubmittedToDate=todate)
-        data.update(self.enumerate_param('FeedTypeList.Type.', feedtypes))
+        data.update(self.enumerate_param('FeedTypeList.Type', feedtypes))
         data.update(
             self.enumerate_param(
-                'FeedProcessingStatusList.Status.',
+                'FeedProcessingStatusList.Status',
                 processingstatuses
             )
         )
@@ -375,8 +374,8 @@ class Feeds(MWS):
         data = dict(Action='CancelFeedSubmissions',
                     SubmittedFromDate=fromdate,
                     SubmittedToDate=todate)
-        data.update(self.enumerate_param('FeedSubmissionIdList.Id.', feedids))
-        data.update(self.enumerate_param('FeedTypeList.Type.', feedtypes))
+        data.update(self.enumerate_param('FeedSubmissionIdList.Id', feedids))
+        data.update(self.enumerate_param('FeedTypeList.Type', feedtypes))
         return self.make_request(data)
 
     def get_feed_submission_result(self, feedid):
@@ -401,7 +400,7 @@ class Reports(MWS):
                     Acknowledged=acknowledged,
                     AvailableFromDate=fromdate,
                     AvailableToDate=todate)
-        data.update(self.enumerate_param('ReportTypeList.Type.', report_types))
+        data.update(self.enumerate_param('ReportTypeList.Type', report_types))
         return self.make_request(data)
 
     def get_report_list(self, requestids=(), max_count=None, types=(),
@@ -411,9 +410,9 @@ class Reports(MWS):
                     AvailableFromDate=fromdate,
                     AvailableToDate=todate,
                     MaxCount=max_count)
-        data.update(self.enumerate_param('ReportRequestIdList.Id.',
+        data.update(self.enumerate_param('ReportRequestIdList.Id',
                                          requestids))
-        data.update(self.enumerate_param('ReportTypeList.Type.', types))
+        data.update(self.enumerate_param('ReportTypeList.Type', types))
         return self.make_request(data)
 
     def get_report_list_by_next_token(self, token):
@@ -425,8 +424,8 @@ class Reports(MWS):
         data = dict(Action='GetReportRequestCount',
                     RequestedFromDate=fromdate,
                     RequestedToDate=todate)
-        data.update(self.enumerate_param('ReportTypeList.Type.', report_types))
-        data.update(self.enumerate_param('ReportProcessingStatusList.Status.',
+        data.update(self.enumerate_param('ReportTypeList.Type', report_types))
+        data.update(self.enumerate_param('ReportProcessingStatusList.Status',
                                          processingstatuses))
         return self.make_request(data)
 
@@ -437,10 +436,10 @@ class Reports(MWS):
                     MaxCount=max_count,
                     RequestedFromDate=fromdate,
                     RequestedToDate=todate)
-        data.update(self.enumerate_param('ReportRequestIdList.Id.',
+        data.update(self.enumerate_param('ReportRequestIdList.Id',
                                          requestids))
-        data.update(self.enumerate_param('ReportTypeList.Type.', types))
-        data.update(self.enumerate_param('ReportProcessingStatusList.Status.',
+        data.update(self.enumerate_param('ReportTypeList.Type', types))
+        data.update(self.enumerate_param('ReportProcessingStatusList.Status',
                                          processingstatuses))
         return self.make_request(data)
 
@@ -454,18 +453,18 @@ class Reports(MWS):
                     ReportType=report_type,
                     StartDate=start_date,
                     EndDate=end_date)
-        data.update(self.enumerate_param('MarketplaceIdList.Id.',
+        data.update(self.enumerate_param('MarketplaceIdList.Id',
                                          marketplaceids))
         return self.make_request(data)
 
     def get_report_schedule_list(self, types=()):
         data = dict(Action='GetReportScheduleList')
-        data.update(self.enumerate_param('ReportTypeList.Type.', types))
+        data.update(self.enumerate_param('ReportTypeList.Type', types))
         return self.make_request(data)
 
     def get_report_schedule_count(self, types=()):
         data = dict(Action='GetReportScheduleCount')
-        data.update(self.enumerate_param('ReportTypeList.Type.', types))
+        data.update(self.enumerate_param('ReportTypeList.Type', types))
         return self.make_request(data)
 
 
@@ -490,10 +489,12 @@ class Orders(MWS):
                     SellerOrderId=seller_orderid,
                     MaxResultsPerPage=max_results,
                     )
-        data.update(self.enumerate_param('OrderStatus.Status.', orderstatus))
-        data.update(self.enumerate_param('MarketplaceId.Id.', marketplaceids))
-        data.update(self.enumerate_param('FulfillmentChannel.Channel.', fulfillment_channels))
-        data.update(self.enumerate_param('PaymentMethod.Method.', payment_methods))
+        data.update(self.enumerate_param('OrderStatus.Status', orderstatus))
+        data.update(self.enumerate_param('MarketplaceId.Id', marketplaceids))
+        data.update(self.enumerate_param('FulfillmentChannel.Channel',
+                                         fulfillment_channels))
+        data.update(self.enumerate_param('PaymentMethod.Method',
+                                         payment_methods))
         return self.make_request(data)
 
     def list_orders_by_next_token(self, token):
@@ -502,7 +503,7 @@ class Orders(MWS):
 
     def get_order(self, amazon_order_ids):
         data = dict(Action='GetOrder')
-        data.update(self.enumerate_param('AmazonOrderId.Id.', amazon_order_ids))
+        data.update(self.enumerate_param('AmazonOrderId.Id', amazon_order_ids))
         return self.make_request(data)
 
     def list_order_items(self, amazon_order_id):
@@ -540,7 +541,7 @@ class Products(MWS):
         ASIN values that you specify.
         """
         data = dict(Action='GetMatchingProduct', MarketplaceId=marketplaceid)
-        data.update(self.enumerate_param('ASINList.ASIN.', asins))
+        data.update(self.enumerate_param('ASINList.ASIN', asins))
         return self.make_request(data)
 
     def get_matching_product_for_id(self, marketplaceid, type, id):
@@ -560,8 +561,9 @@ class Products(MWS):
         Returns the current competitive pricing of a product,
         based on the SellerSKU and MarketplaceId that you specify.
         """
-        data = dict(Action='GetCompetitivePricingForSKU', MarketplaceId=marketplaceid)
-        data.update(self.enumerate_param('SellerSKUList.SellerSKU.', skus))
+        data = dict(Action='GetCompetitivePricingForSKU',
+                    MarketplaceId=marketplaceid)
+        data.update(self.enumerate_param('SellerSKUList.SellerSKU', skus))
         return self.make_request(data)
 
     def get_competitive_pricing_for_asin(self, marketplaceid, asins):
@@ -569,24 +571,27 @@ class Products(MWS):
         Returns the current competitive pricing of a product,
         based on the ASIN and MarketplaceId that you specify.
         """
-        data = dict(Action='GetCompetitivePricingForASIN', MarketplaceId=marketplaceid)
-        data.update(self.enumerate_param('ASINList.ASIN.', asins))
+        data = dict(Action='GetCompetitivePricingForASIN',
+                    MarketplaceId=marketplaceid)
+        data.update(self.enumerate_param('ASINList.ASIN', asins))
         return self.make_request(data)
 
-    def get_lowest_offer_listings_for_sku(self, marketplaceid, skus, condition="Any", excludeme="False"):
+    def get_lowest_offer_listings_for_sku(self, marketplaceid, skus,
+                                          condition="Any", excludeme="False"):
         data = dict(Action='GetLowestOfferListingsForSKU',
                     MarketplaceId=marketplaceid,
                     ItemCondition=condition,
                     ExcludeMe=excludeme)
-        data.update(self.enumerate_param('SellerSKUList.SellerSKU.', skus))
+        data.update(self.enumerate_param('SellerSKUList.SellerSKU', skus))
         return self.make_request(data)
 
-    def get_lowest_offer_listings_for_asin(self, marketplaceid, asins, condition="Any", excludeme="False"):
+    def get_lowest_offer_listings_for_asin(self, marketplaceid, asins,
+                                           condition="Any", excludeme="False"):
         data = dict(Action='GetLowestOfferListingsForASIN',
                     MarketplaceId=marketplaceid,
                     ItemCondition=condition,
                     ExcludeMe=excludeme)
-        data.update(self.enumerate_param('ASINList.ASIN.', asins))
+        data.update(self.enumerate_param('ASINList.ASIN', asins))
         return self.make_request(data)
 
     def get_product_categories_for_sku(self, marketplaceid, sku):
@@ -605,14 +610,14 @@ class Products(MWS):
         data = dict(Action='GetMyPriceForSKU',
                     MarketplaceId=marketplaceid,
                     ItemCondition=condition)
-        data.update(self.enumerate_param('SellerSKUList.SellerSKU.', skus))
+        data.update(self.enumerate_param('SellerSKUList.SellerSKU', skus))
         return self.make_request(data)
 
     def get_my_price_for_asin(self, marketplaceid, asins, condition=None):
         data = dict(Action='GetMyPriceForASIN',
                     MarketplaceId=marketplaceid,
                     ItemCondition=condition)
-        data.update(self.enumerate_param('ASINList.ASIN.', asins))
+        data.update(self.enumerate_param('ASINList.ASIN', asins))
         return self.make_request(data)
 
 
@@ -668,7 +673,7 @@ class Inventory(MWS):
                     QueryStartDateTime=datetime,
                     ResponseGroup=response_group,
                     )
-        data.update(self.enumerate_param('SellerSkus.member.', skus))
+        data.update(self.enumerate_param('SellerSkus.member', skus))
         return self.make_request(data, "POST")
 
     def list_inventory_supply_by_next_token(self, token):
@@ -680,16 +685,28 @@ class OutboundShipments(MWS):
     URI = "/FulfillmentOutboundShipment/2010-10-01"
     VERSION = "2010-10-01"
 
+    def _get_items_as_params(self, items):
+        item_dict = {}
+        for k, v in self.enumerate_param('Items.member', items).iteritems():
+            item_dict.update(self.dict_param(k, v))
+        return item_dict
+
     def get_fulfillment_preview(self, address, items,
                                 shipping_speed_categories=None):
-        #data = dict(Action="GetFulfillmentPreview")
-        raise NotImplementedError()
+        data = dict(Action="GetFulfillmentPreview")
+        data.update(self.dict_param('Address', address))
+        if shipping_speed_categories:
+            data.update(self.enumerate_param(
+                'ShippingSpeedCategories', shipping_speed_categories))
+        data.update(self._get_items_as_params(items))
+        return self.make_request(data, 'GET')
 
-    def create_fulfillment_order(self, order_id, items, destination_address,
-                                 displayable_order_id=None, order_date=None,
-                                 shipping_speed=None, fulfillment_policy=None,
-                                 fulfillment_method=None, comments=None,
-                                 notification_emails=None):
+    def create_fulfillment_order(
+            self, order_id, items, destination_address, order_date, comments,
+            shipping_speed, fulfillment_policy=None, fulfillment_method=None,
+            displayable_order_id=None, notification_emails=None):
+
+        displayable_order_id = displayable_order_id or order_id
         data = dict(
             Action="CreateFulfillmentOrder",
             SellerFulfillmentOrderId=order_id,
@@ -698,15 +715,15 @@ class OutboundShipments(MWS):
             ShippingSpeedCategory=shipping_speed,
             DisplayableOrderComment=comments,
         )
+        data.update(self.dict_param('DestinationAddress', destination_address))
+        data.update(self._get_items_as_params(items))
+        data.update(self.enumerate_param(
+            'NotificationEmailList.member', notification_emails))
+
         if fulfillment_method:
             data['FulfillmentMethod'] = fulfillment_method
         if fulfillment_policy:
             data['FulfillmentPolicy'] = fulfillment_policy
-        data.update(self.dict_param('DestinationAddress', destination_address))
-        data.update(self.enumerate_param('NotificationEmailList.member',
-                                         notification_emails))
-        for k, v in self.enumerate_param('Items.member', items).iteritems():
-            data.update(self.dict_param(k, v))
         return self.make_request(data, 'POST')
 
     def get_fulfillment_order(self, order_id):
@@ -714,22 +731,27 @@ class OutboundShipments(MWS):
                     SellerFulfillmentOrderId=order_id)
         return self.make_request(data, "GET")
 
-    def list_all_fulfillment_orders(self, query_start=None, query_end=None,
-                                    order_id=None):
-        #data = dict(Action="ListAllFulfillmentOrders")
-        raise NotImplementedError()
+    def list_all_fulfillment_orders(self, query_start=None,
+                                    fulfillment_method=None):
+        data = dict(Action="ListAllFulfillmentOrders",
+                    QueryStartDateTime=query_start,
+                    FulfillmentMethod=fulfillment_method)
+        return self.make_request(data, "GET")
 
     def list_all_fulfillment_orders_by_next_token(self, next_token):
-        #data = dict(Action="ListAllFulfillmentOrdersByNextToken")
-        raise NotImplementedError()
+        data = dict(Action="ListAllFulfillmentOrdersByNextToken",
+                    NextToken=next_token)
+        return self.make_request(data, "GET")
 
     def get_package_tracking_details(self, package_number):
-        #data = dict(Action="GetPackageTrackingDetails")
-        raise NotImplementedError()
+        data = dict(Action="GetPackageTrackingDetails",
+                    PackageNumber=package_number)
+        return self.make_request(data, "GET")
 
     def cancel_fulfillment_order(self, order_id):
-        #data = dict(Action="CancelFulfillmentOrder")
-        raise NotImplementedError()
+        data = dict(Action="CancelFulfillmentOrder",
+                    SellerFulfillmentOrderId=order_id)
+        return self.make_request(data, "POST")
 
 
 class Recommendations(MWS):

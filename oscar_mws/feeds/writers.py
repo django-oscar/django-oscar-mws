@@ -95,17 +95,6 @@ class ProductFeedWriter(BaseFeedWriter):
         self.messages[msg_id] = product
         self.root.append(msg_elem)
 
-    def validate_xml(self):
-        if not self.schema:
-            with open('oscar_mws/xsd/amzn-base.xsd') as xsdfh:
-                schema_doc = etree.parse(xsdfh)
-                self.schema = etree.XMLSchema(schema_doc)
-        is_valid = self.schema.validate(self.root)
-        if not is_valid:
-            logger.debug(
-                "product feed XML not valid: {0}".format(self.schema.error.log)
-            )
-
 
 class InventoryFeedWriter(BaseFeedWriter):
     mapper_class = mappers.InventoryProductMapper
