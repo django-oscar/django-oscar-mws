@@ -14,7 +14,8 @@ from ..feeds import gateway as feeds_gw
 from . import forms as dashboard_forms
 from ..seller.gateway import update_marketplaces
 from ..fulfillment.creator import FulfillmentOrderCreator
-from ..fulfillment.gateway import update_fulfillment_orders, update_inventory
+from ..fulfillment.gateway import (update_fulfillment_orders, update_inventory,
+                                   submit_fulfillment_orders)
 
 Order = get_model('order', 'Order')
 Product = get_model('catalogue', 'Product')
@@ -285,17 +286,6 @@ class FulfillmentOrderCreateView(generic.FormView):
 
     default_fulfillment_region = oscar_mws.MWS_MARKETPLACE_GB
 
-    def get_merchant(self, order):
-        """
-        Get the Amazon merchant account that should be used for this *order*.
-        """
-        merchants = MerchantAccount.objects.filter(
-            marketplaces__region=self.default_fulfillment_region
-        )[:1]
-        if not merchants:
-            return None
-        return merchants[0]
-
     def form_valid(self, form):
         order_number = self.kwargs.get('order_number')
         if not order_number:
@@ -314,17 +304,9 @@ class FulfillmentOrderCreateView(generic.FormView):
             )
             return HttpResponseRedirect(self.get_order_list_url())
 
-        merchant = self.get_merchant(order)
-        if not merchant:
-            messages.error(
-                self.request,
-                _("Could not find Amazon merchant suitable for order "
-                  "#{0}").format(order_number)
-            )
-            return HttpResponseRedirect(self.get_order_list_url())
-
-        order_creator = FulfillmentOrderCreator(merchant)
+        order_creator = FulfillmentOrderCreator()
         submitted_orders = order_creator.create_fulfillment_order(order)
+        submit_fulfillment_orders(submitted_orders)
 
         if not order_creator.errors:
             messages.info(
