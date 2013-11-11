@@ -73,7 +73,7 @@ class AmazonMarketplaceFactory(factory.DjangoModelFactory):
 
     name = "Dummy Marketplace"
     region = MWS_MARKETPLACE_US
-    marketplace_id = 'FAKEMARKETPLACEID'
+    marketplace_id = factory.Sequence(lambda n: 'MWS_MKT_{}'.format(n))
     merchant = factory.SubFactory(MerchantAccountFactory)
 
 
