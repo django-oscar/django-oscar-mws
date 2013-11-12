@@ -201,13 +201,16 @@ class AmazonProfileCreateView(generic.CreateView):
     form_class = dashboard_forms.AmazonProfileCreateForm
     success_url = reverse_lazy('mws-dashboard:profile-list')
 
+    def dispatch(self, *args, **kwargs):
+        try:
+            self.product = Product.objects.get(pk=kwargs.get('pk'))
+        except Product.DoesNotExist:
+            return HttpResponseRedirect(reverse('mws-dashboard:profile-list'))
+        return super(AmazonProfileCreateView, self).dispatch(*args, **kwargs)
+
     def get_form_kwargs(self):
         kwargs = super(AmazonProfileCreateView, self).get_form_kwargs()
-        try:
-            product = Product.objects.get(pk=self.kwargs.get('pk'))
-        except Product.DoesNotExist:
-            product = None
-        kwargs.update(product=product)
+        kwargs.update(product=self.product)
         return kwargs
 
 

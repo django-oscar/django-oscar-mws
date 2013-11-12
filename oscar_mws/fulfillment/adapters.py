@@ -1,4 +1,3 @@
-from decimal import Decimal as D
 from collections import OrderedDict
 
 from django.conf import settings
