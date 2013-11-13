@@ -9,6 +9,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from oscar.core.loading import get_class
 
 from ..api import MWSObject, MWSError
+from ..signals import mws_fulfillment_created
 from ..connection import get_merchant_connection
 
 logger = logging.getLogger('oscar_mws')
@@ -148,6 +149,8 @@ def submit_fulfillment_order(fulfillment_order):
         fulfillment_order.status = fulfillment_order.SUBMISSION_FAILED
     else:
         fulfillment_order.status = fulfillment_order.SUBMITTED
+        mws_fulfillment_created.send(
+            sender=outbound_api, fulfillment_order=fulfillment_order)
     fulfillment_order.save()
 
 
