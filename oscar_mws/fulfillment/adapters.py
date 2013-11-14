@@ -168,7 +168,8 @@ class OrderAdapter(BaseAdapter):
         try:
             lines = self.order.get_lines_for_address(address, **kwargs)
         except AttributeError:
-            lines = self.order.lines.all()
+            lines = self.order.lines.filter(
+                product__amazon_profile__isnull=False)
 
         return [self.get_line_adapter(l) for l in lines]
 

@@ -9,6 +9,7 @@ from oscar_mws.test import factories
 from oscar_mws.fulfillment.creator import FulfillmentOrderCreator
 
 Country = get_model('address', 'Country')
+Product = get_model('catalogue', 'Product')
 ShippingAddress = get_model('order', 'ShippingAddress')
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
 
@@ -69,3 +70,18 @@ class TestFulfillmentShipmentCreator(TestCase):
         for mws_order, address in zip(mws_orders, addresses):
             self.assertEquals(mws_order.status, mws_order.UNSUBMITTED)
             self.assertEquals(mws_order.shipping_address.id, address.id)
+
+    def test_ignores_order_lines_without_amazon_profile(self):
+        non_mws_product = factories.ProductFactory(amazon_profile=None)
+        self.basket.add_product(non_mws_product)
+        order = create_order(basket=self.basket, shipping_address=self.address)
+        self.creator.create_fulfillment_order(order)
+
+        mws_orders = FulfillmentOrder.objects.all()
+        self.assertEquals(len(mws_orders), 1)
+        mws_order = mws_orders[0]
+        self.assertEquals(mws_order.status, mws_order.UNSUBMITTED)
+        self.assertEquals(mws_order.shipping_address.id, self.address.id)
+        self.assertItemsEqual(
+            [l.product for l in mws_order.lines.all()],
+            list(Product.objects.exclude(id=non_mws_product.id)))
