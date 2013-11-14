@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from . import adapters
 from ..utils import load_class
+from . import MwsFulfillmentError
 
 MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
 FulfillmentOrder = get_model('oscar_mws', 'FulfillmentOrder')
@@ -40,7 +41,10 @@ class FulfillmentOrderCreator(object):
             fulfillment_id = adapter.get_seller_fulfillment_order_id(address)
             order_kw = adapter.get_fields(address=address)
 
-            merchant = self.find_fulfillment_merchant(order, address)
+            try:
+                merchant = self.find_fulfillment_merchant(order, address)
+            except MwsFulfillmentError:
+                merchant = None
             if not merchant:
                 self.errors[fulfillment_id] = _(
                     "could not find suitable merchant for fulfillemnt order "
