@@ -26,7 +26,8 @@ class BaseProductDataMapper(object):
         ).select_related('attribute')
 
         values = sorted(
-            [(self.ATTRIBUTE_MAPPING.get(p.attribute.code), p.value) for p in attr_values]
+            [(self.ATTRIBUTE_MAPPING.get(p.attribute.code), p.value)
+             for p in attr_values]
         )
         for name, value in values:
             pt_elem.append(getattr(E, name)(value))
@@ -53,13 +54,6 @@ class BaseProductMapper(object):
         if hasattr(obj, method_name):
             return getattr(obj, method_name)()
         value = getattr(obj, attr, None)
-        #TODO this should be limited to only fields that are required in
-        # the feed.
-        #if not value:
-        #    raise AttributeError(
-        #        "can't find attribute or function for {0}. Make sure you "
-        #        "have either of them defined and try again".format(attr)
-        #    )
         return value
 
     def get_value_element(self, attr_name):
@@ -145,8 +139,7 @@ class ProductMapper(BaseProductMapper):
             # Assign to the product to make sure it is accessible without
             # having to look it up on the product again
             self.product.amazon_profile = AmazonProfile.objects.create(
-                product=self.product
-            )
+                product=self.product)
 
         for attr in attr_names:
             attr_elem = self.get_value_element(attr)
@@ -170,10 +163,7 @@ class ProductMapper(BaseProductMapper):
         self._add_attributes(product_elem, self.BASE_ATTRIBUTES)
 
         desc_elem = etree.SubElement(product_elem, 'DescriptionData')
-        self._add_attributes(
-            desc_elem,
-            self.DESCRIPTION_DATA_ATTRIBUTES
-        )
+        self._add_attributes(desc_elem, self.DESCRIPTION_DATA_ATTRIBUTES)
 
         mapper = self.PRODUCT_DATA_MAPPERS.get(self.product.product_class.slug)
         if mapper:

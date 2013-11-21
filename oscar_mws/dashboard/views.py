@@ -1,3 +1,4 @@
+import logging
 import oscar_mws
 
 from django import forms
@@ -14,9 +15,13 @@ from ..feeds import gateway as feeds_gw
 from . import forms as dashboard_forms
 from ..abstract_models import STATUS_DONE
 from ..seller.gateway import update_marketplaces
+
+from ..fulfillment import MwsFulfillmentError
 from ..fulfillment.creator import FulfillmentOrderCreator
-from ..fulfillment.gateway import (update_fulfillment_orders, update_inventory,
-                                   submit_fulfillment_orders)
+from ..fulfillment.gateway import (
+    update_fulfillment_orders, update_inventory, submit_fulfillment_orders)
+
+logger = logging.getLogger('oscar_mws')
 
 Order = get_model('order', 'Order')
 Product = get_model('catalogue', 'Product')
@@ -299,7 +304,21 @@ class FulfillmentOrderCreateView(generic.FormView):
             )
             return HttpResponseRedirect(self.get_order_list_url())
 
-        order_creator = FulfillmentOrderCreator()
+        try:
+            order_creator = FulfillmentOrderCreator()
+        except MwsFulfillmentError:
+            logger.error(
+                "could not create fulfillment order(s) from order {}".format(
+                    order.number),
+                exc_info=1,
+                extra={'order_number': order.number,
+                       'user': self.request.user.id})
+            messages.error(
+                self.request,
+                "couldn't translate order {} into MWS-ready format".format(
+                    order.number))
+            return HttpResponseRedirect(self.get_order_url())
+
         submitted_orders = order_creator.create_fulfillment_order(order)
         submit_fulfillment_orders(submitted_orders)
 
@@ -307,8 +326,8 @@ class FulfillmentOrderCreateView(generic.FormView):
             fo for fo in submitted_orders if fo.status == fo.SUBMISSION_FAILED]
         if len(failed_orders) > 0:
             messages.error(
-                self.request, _("Error submitting order {0} to Amazon").format(
-                    fo.fulfillment_id))
+                self.request, _("Error submitting orders {} to Amazon").format(
+                    ', '.join(failed_orders)))
         return HttpResponseRedirect(self.get_order_url())
 
     def get_order_url(self):
@@ -397,9 +416,14 @@ class MarketplaceUpdateView(generic.View):
                 self.request,
                 _("No seller with ID '{0}' configured").format(seller_id),
             )
-        else:
+            return HttpResponseRedirect(
+                reverse_lazy('mws-dashboard:merchant-list'))
+
+        try:
             update_marketplaces(seller)
+        except MWSError:
+            messages.error(
+                self.request, "couldn't retrieve marketplaces from Amazon")
 
         return HttpResponseRedirect(
-            reverse_lazy('mws-dashboard:merchant-list')
-        )
+            reverse_lazy('mws-dashboard:merchant-list'))

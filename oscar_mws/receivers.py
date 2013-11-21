@@ -2,6 +2,8 @@ import logging
 
 from django.utils.translation import ugettext_lazy as _
 
+from .fulfillment import MwsFulfillmentError
+
 logger = logging.getLogger('oscar_mws')
 
 
@@ -15,21 +17,26 @@ def submit_order_to_mws(order, user, **kwargs):
     from oscar_mws.fulfillment import gateway
     from oscar_mws.fulfillment.creator import FulfillmentOrderCreator
 
-    order_creator = FulfillmentOrderCreator()
+    try:
+        order_creator = FulfillmentOrderCreator()
+    except MwsFulfillmentError:
+        logger.error(
+            "could not create fulfillment order(s) from order {}".format(
+                order.number),
+            exc_info=1, extra={'order_number': order.number, 'user': user.id})
+
     submitted_orders = order_creator.create_fulfillment_order(order)
     gateway.submit_fulfillment_orders(submitted_orders)
 
-    if not order_creator.errors:
+    failed_orders = [fo.number
+                     for fo in submitted_orders
+                     if fo.status == fo.SUBMISSION_FAILED]
+    if len(failed_orders) > 0:
+        for order_id in failed_orders:
+            logger.error(
+                _("Error submitting orders {} to Amazon").format(
+                    ', '.join(failed_orders)))
+    else:
         logger.info(
             _("Successfully submitted {0} orders to Amazon").format(
-                len(submitted_orders)
-            )
-        )
-    else:
-        for order_id, error in order_creator.errors.iteritems():
-            logger.error(
-                _("Error submitting order {0} to Amazon: {1}").format(
-                    order_id,
-                    error
-                )
-            )
+                ', '.join([fo.number for fo in submitted_orders])))
