@@ -15,6 +15,13 @@
 import sys
 import os
 
+root_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '../..'))
+sandbox_dir = os.path.realpath(
+    os.path.join(os.path.dirname(__file__), '../../sandbox'))
+sys.path.append(root_dir)
+sys.path.append(sandbox_dir)
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sandbox.sandbox.settings')
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
