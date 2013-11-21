@@ -20,22 +20,31 @@ class AmazonStockTrackingMixin(object):
     of products available from Amazon, we use this mixin to override the
     """
 
-    def set_amazon_supply_quantity(self, quantity):
+    def set_amazon_supply_quantity(self, quantity, commit=True):
         """
         Convenience method to set the field ``num_in_stock`` to *quantity* and
         reset the allocated stock in ``num_allocated`` to zero. We don't care
         about allocation for MWS stock and therefore just reset it.
+
+        :param integer quantity: The quantity currently available on Amazon for
+            Fulfillment by Amazon (FBA).
+        :param boolean commit: Allows to prevent immediate saving of the
+            changes to the database. This is useful if you want to save on
+            database queries when making other changes to the stock record.
         """
         logger.info(
             'setting stock record to MWS supply quantity: {}'.format(quantity))
         self.num_in_stock = quantity
         self.num_allocated = 0
-        self.save()
+        if commit:
+            self.save()
 
     def consume_allocation(self, quantity):
         """
         This is used when an item is shipped. We remove the original
         allocation and adjust the number in stock accordingly
+
+        :param integer quantity: The quantity to be consumed.
         """
         if self.is_mws_record:
             logger.debug(
@@ -47,6 +56,13 @@ class AmazonStockTrackingMixin(object):
 
     @property
     def is_mws_record(self):
+        """
+        Checks whether this stock record is associated with an Amazon merchant
+        account.
+
+        :rtype bool: ``True`` if the stockrecord is Amazon stock,
+            ``False`` otherwise.
+        """
         try:
             self.partner.amazon_merchant
         except ObjectDoesNotExist:

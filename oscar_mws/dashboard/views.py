@@ -12,6 +12,7 @@ from django.core.urlresolvers import reverse, reverse_lazy
 from ..api import MWSError
 from ..feeds import gateway as feeds_gw
 from . import forms as dashboard_forms
+from ..abstract_models import STATUS_DONE
 from ..seller.gateway import update_marketplaces
 from ..fulfillment.creator import FulfillmentOrderCreator
 from ..fulfillment.gateway import (update_fulfillment_orders, update_inventory,
@@ -69,7 +70,7 @@ class ProductListView(FormMixin, generic.ListView):
             products = Product.objects.filter(Q(amazon_profile__isnull=False))
         try:
             update_inventory(products)
-        except feeds_gw.MwsFeedError:
+        except (feeds_gw.MwsFeedError, MWSError):
             messages.error(
                 self.request, "An error occured updating available stock")
         else:
@@ -277,7 +278,7 @@ class SubmissionUpdateView(generic.View):
                 "Updated feed submission {0}".format(submission_id)
             )
 
-        if submission.processing_status == '_DONE_':
+        if submission.processing_status == STATUS_DONE:
             feeds_gw.process_submission_results(submission)
 
         return HttpResponseRedirect(self.redirect_url)
@@ -286,7 +287,6 @@ class SubmissionUpdateView(generic.View):
 class FulfillmentOrderCreateView(generic.FormView):
     model = FulfillmentOrder
     form_class = forms.Form
-
     default_fulfillment_region = oscar_mws.MWS_MARKETPLACE_GB
 
     def form_valid(self, form):
@@ -311,22 +311,12 @@ class FulfillmentOrderCreateView(generic.FormView):
         submitted_orders = order_creator.create_fulfillment_order(order)
         submit_fulfillment_orders(submitted_orders)
 
-        if not order_creator.errors:
-            messages.info(
-                self.request,
-                _("Successfully submitted {0} orders to Amazon").format(
-                    len(submitted_orders)
-                )
-            )
-        else:
-            for order_id, error in order_creator.errors.iteritems():
-                messages.error(
-                    self.request,
-                    _("Error submitting order {0} to Amazon: {1}").format(
-                        order_id,
-                        error
-                    )
-                )
+        failed_orders = [
+            fo for fo in submitted_orders if fo.status == fo.SUBMISSION_FAILED]
+        if len(failed_orders) > 0:
+            messages.error(
+                self.request, _("Error submitting order {0} to Amazon").format(
+                    fo.fulfillment_id))
         return HttpResponseRedirect(self.get_order_url())
 
     def get_order_url(self):
@@ -343,9 +333,14 @@ class FulfillmentOrderUpdateView(generic.View):
 
     def get(self, request, *args, **kwargs):
         order_number = kwargs.get('order_number')
-        update_fulfillment_orders(
-            FulfillmentOrder.objects.filter(order__number=order_number)
-        )
+        try:
+            update_fulfillment_orders(
+                FulfillmentOrder.objects.filter(order__number=order_number))
+        except MWSError:
+            messages.error(
+                self.request, ("an error occured updating fulfillment orders, "
+                               "please try again or report the problem."))
+
         return HttpResponseRedirect(
             reverse(
                 'dashboard:order-detail',
