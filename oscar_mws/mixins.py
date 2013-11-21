@@ -38,6 +38,7 @@ class AmazonStockTrackingMixin(object):
         self.num_allocated = 0
         if commit:
             self.save()
+    set_amazon_supply_quantity.alters_data = True
 
     def consume_allocation(self, quantity):
         """

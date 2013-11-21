@@ -4,6 +4,7 @@ from dateutil.parser import parse as du_parse
 
 from django.db.models import get_model
 
+from ..api import MWSError
 from .. import abstract_models as am
 from ..connection import get_merchant_connection
 from ..feeds import writers
@@ -24,12 +25,24 @@ OP_TYPE_DELETE = 'Delete'
 
 
 class MwsFeedError(BaseException):
+    """ Represents an error that is specific to the Feed API of MWS. """
     pass
 
 
 def handle_feed_submission_response(merchant, response, feed_xml=None):
-    fsinfo = response.FeedSubmissionInfo
+    """
+    Processes the response received from MWS when submitting an XML feed. It
+    creates a new :class:`FeedSubmission <oscar_mws.models.FeedSubmission>`
+    from the ID in the *response* as well as submission metadata such as the
+    feed submission date. If the original XML is passed in as *feed_xml* it
+    is stored with the feed submission for reference and easier debugging.
 
+    :param MerchantAccount merchant: the merchant account the feed was
+        submitted to.
+    :param response: the original response dict returned by MWS.
+    :param str feed_xml: XML submitted to MWS or None
+    """
+    fsinfo = response.FeedSubmissionInfo
     try:
         submission = FeedSubmission.objects.get(
             submission_id=fsinfo.FeedSubmissionId,
@@ -48,11 +61,8 @@ def handle_feed_submission_response(merchant, response, feed_xml=None):
     submission.merchant = merchant
     submission.processing_status = fsinfo.FeedProcessingStatus
     submission.save()
-
     logger.info(
-        "Feed submission successful as ID {0}".format(submission.submission_id)
-    )
-
+        "Feed submission successful as ID {}".format(submission.submission_id))
     return submission
 
 
@@ -69,24 +79,36 @@ def submit_product_feed(products, marketplaces, dry_run=False,
     part of the same merchant account and have to have the same language code
     specified. If either of these restrictions is violated, the feed will be
     rejected by Amazon.
+
+    :param list products: list of Oscar products to be submitted
+    :param list marketplaces: list of AmazonMarketplaces to make the products
+        available on
+    :param boolean dry_run: flag to specify dry run mode. If ``True`` the XML
+        feed will be generated and printed to stdout instead of submitting it
+        to MWS. Default: ``False``.
+    :param str operation_type: the operation type for the MWS feed according to
+        the MWS documentation. Default: ``Update``.
+
+    :rtype list: list of FeedSubmission objects created for the submitted MWS
+        feeds
+
+    :raises MwsFeedError: if marketplaces aren't part of the same Amazon
+        merchant account.
+    :raises MWSError: if an error occurs while communicating with MWS.
     """
     merchant_ids = set([m.merchant_id for m in marketplaces])
     marketplace_ids = [m.marketplace_id for m in marketplaces]
     if len(merchant_ids) > 1:
         raise MwsFeedError(
             "Marketplaces of different merchant accounts specified. This "
-            "is invalid, please only use marketplaces for the same seller"
-        )
+            "is invalid, please only use marketplaces for the same seller")
 
     submissions = []
     for marketplace in marketplaces:
         merchant = marketplace.merchant
         logger.info(
             "Updating {0} products for seller ID {1}".format(
-                len(products),
-                merchant.seller_id,
-            )
-        )
+                len(products), merchant.seller_id))
 
         writer = writers.ProductFeedWriter(merchant_id=merchant.seller_id)
         for product in products:
@@ -100,11 +122,18 @@ def submit_product_feed(products, marketplaces, dry_run=False,
             return
 
         feeds_api = get_merchant_connection(merchant.seller_id).feeds
-        response = feeds_api.submit_feed(
-            feed=xml_data,
-            feed_type=am.TYPE_POST_PRODUCT_DATA,
-            marketplaceids=marketplace_ids or merchant.marketplace_ids
-        )
+        try:
+            response = feeds_api.submit_feed(
+                feed=xml_data, feed_type=am.TYPE_POST_PRODUCT_DATA,
+                marketplaceids=marketplace_ids or merchant.marketplace_ids)
+        except MWSError:
+            logger.error(
+                "could not submit product feed to MWS", exc_info=1,
+                extra={'seller_id': merchant.seller_id,
+                       'marketplace_id': marketplace.marketplace_id,
+                       'product_ids': [p.id for p in products],
+                       'feed_xml': xml_data})
+            raise
         submission = handle_feed_submission_response(merchant, response.parsed,
                                                      feed_xml=xml_data)
         for product in products:
@@ -114,10 +143,29 @@ def submit_product_feed(products, marketplaces, dry_run=False,
 
 
 def update_feed_submission(submission):
-    feeds_api = get_merchant_connection(submission.merchant.seller_id).feeds
-    response = feeds_api.get_feed_submission_list(
-        feedids=[submission.submission_id]
-    ).parsed
+    """
+    Retrieves the status of a submitted MWS feed stored in *submission* and
+    updates the ``processing_status`` of the feed submission.
+
+    :param FeedSubmission submission: a FeedSubmission instance
+    :rtype FeedSubmission: updated submission instanceh
+    :raises MWError: if an error occurs requesting details from MWS
+    """
+    seller_id = submission.merchant.seller_id
+    feeds_api = get_merchant_connection(seller_id).feeds
+
+    try:
+        response = feeds_api.get_feed_submission_list(
+            feedids=[submission.submission_id]
+        ).parsed
+    except MWSError:
+        logger.error(
+            "updating status of feed {} failed".format(
+                submission.submission_id),
+            exc_info=1,
+            extra={'submission_id': submission.submission_id,
+                   'seller_id': seller_id})
+        raise
 
     for result in response.get_list('FeedSubmissionInfo'):
         submission.processing_status = result.FeedProcessingStatus
@@ -227,26 +275,38 @@ def cancel_submission(submission):
     submission.merchant = merchant
     submission.processing_status = result.FeedProcessingStatus
     submission.save()
-
     return submission
 
 
 def process_submission_results(submission):
     """
-    Retrieve the submission results via the MWS API to check for errors in
-    the submitted feed. The report and error data is stored in a submission
-    report on the submission.
+    Retrieves the processing results for the
+    :class:`FeedSubmission <oscar_mws.models.FeedSubmission>` in
+    *submission*. This updates the processing status of the submission if it
+    has changed.
+    If MWS has fully processed the correspoding feed and the processing status
+    is ``_DONE_``, the response includes a processing report with succesfully
+    processed feed items, warnings and errors. The reports are stored in
+    :class:`FeedReport <oscar_mws.models.FeedReport` related to *submission*.
 
-    If the submission was successful, we use the Inventory API to retrieve
-    generated ASINs for new products and update the stock of the products.
+    :param FeedSubmission submission: a feed submission object to retrieve
+        the processing results for.
+    :rtype list: a list of reports returned by MWS
+    :raises MWSError: if an error occurs while communicating with MWS.
     """
-    logger.info(
-        'Requesting submission result for {0}'.format(submission.submission_id)
-    )
+    logger.info('Requesting submission result for {0}'.format(
+        submission.submission_id))
     feeds_api = get_merchant_connection(submission.merchant.seller_id).feeds
-    response = feeds_api.get_feed_submission_result(
-        feedid=submission.submission_id
-    ).parsed
+
+    try:
+        response = feeds_api.get_feed_submission_result(
+            feedid=submission.submission_id).parsed
+    except MWSError:
+        logger.error("can't get submission result for {}".format(
+            submission.submission_id), exc_info=1,
+            extra={'submission_id': submission.submission_id,
+                   'seller_id': submission.merchant.seller_id})
+        raise
 
     reports = []
     for message in response.get_list('Message'):
@@ -255,9 +315,8 @@ def process_submission_results(submission):
 
         if unicode(submission_id) != unicode(submission.submission_id):
             logger.warning(
-                'received submission result for {0} when requesting '
-                '{1}'.format(submission_id, submission.submission_id)
-            )
+                'received submission result for {} when requesting '
+                '{}'.format(submission_id, submission.submission_id))
             continue
 
         try:
@@ -286,18 +345,30 @@ def process_submission_results(submission):
             if product_sku:
                 try:
                     product = Product.objects.get(
-                        amazon_profile__sku=product_sku
-                    )
+                        amazon_profile__sku=product_sku)
                 except Product.DoesNotExist:
                     pass
                 else:
                     feed_result.product = product
             feed_result.save()
-
     return reports
 
 
 def update_product_identifiers(merchant, products):
+    """
+    Updates the identifiers ``SellerSKU`` and ``ASIN`` used by Amazon for the
+    given list of products. The update only lookes at products handled in MWS
+    for the :class:`MerchantAccount <oscar_mws.models.MerchantAccount>` given
+    in *merchant*. Each product in *products* is only considered for the
+    marketplaces defined in its :class:`AmazonProfile
+    <oscar_mws.models.AmazonProfile>`. The ``SellerSKU`` and ``ASIN`` received
+    for each product are stored on the products :class:`Amazon Profile
+    <oscar_mws.models.AmazonProfile>`.
+
+    :param MerchantAccount merchant: the merchant account to get IDs for
+    :param list products: list of Oscar products to get IDs for
+    :raises MWSError: if an error occurs communicating with MWS
+    """
     prods_api = get_merchant_connection(merchant.seller_id).products
     for product in products:
         marketplace_ids = [
@@ -307,18 +378,24 @@ def update_product_identifiers(merchant, products):
             marketplace_ids = [None]
 
         for marketplace_id in marketplace_ids:
-            response = prods_api.get_matching_product_for_id(
-                marketplaceid=marketplace_id,
-                type="SellerSKU",
-                id=[product.amazon_profile.sku],
-            ).parsed
+            try:
+                response = prods_api.get_matching_product_for_id(
+                    marketplaceid=marketplace_id, type="SellerSKU",
+                    id=[product.amazon_profile.sku]).parsed
+            except MWSError:
+                logger.error(
+                    "could not retrieve product identifiers",
+                    exc_info=1, extra={
+                        'marketplace_id': marketplace_id,
+                        'seller_sku': product.amazon_profile.sku,
+                        'seller_id': merchant.seller_id,
+                        'product_id': product.id})
+                raise
 
             if not response.get('@status') == 'Success':
                 logger.info(
                     'Skipping product with SKU {0}, no info available'.format(
-                        response.get("Id")
-                    )
-                )
+                        response.get("Id")))
                 continue
 
             for fprod in response.Products.get_list('Product'):
@@ -336,7 +413,28 @@ def update_product_identifiers(merchant, products):
 
 
 def switch_product_fulfillment(marketplace, products, dry_run=False):
-    writer = writers.InventoryFeedWriter(marketplace.merchant.seller_id)
+    """
+    Switches the list of *products* sold on the given :class:`AmazonMarketplace
+    <oscar_mws.models.AmazonMarketplace` *marketplace* to
+    the fulfillment set on the :class:`AmazonProfile
+    <oscar_mws.models.AmazonProfile>`'s ``fulfillment_by`` attribute. If the
+    fulfillment is changed to "Fulfillment By Amazon (FBA)" all manually set
+    stock information is discarded and handled by Amazon automatically based on
+    inbound shipments (refer to the Amazon MWS documentation for more details).
+
+    :param AmazonMarketplace marketplace: an Amazon marketplace instance
+    :param list products: a list of Oscar products
+    :param boolean dry_run: flag to enable dry run. If set to ``True`` the
+        generated XML is printed to stdout rather than submitted to MWS.
+        Default: ``False``
+
+    :rtype FeedSubmission: a submission object representing the succesfully
+        submitted XML feed. Used to track the processing status of the feed.
+
+    :raises MWSError: if an error occurs while communicating with MWS.
+    """
+    seller_id = marketplace.merchant.seller_id
+    writer = writers.InventoryFeedWriter(seller_id)
     for product in products:
         writer.add_product(
             product,
@@ -353,10 +451,16 @@ def switch_product_fulfillment(marketplace, products, dry_run=False):
         return
 
     feeds_api = get_merchant_connection(marketplace.merchant.seller_id).feeds
-    response = feeds_api.submit_feed(
-        feed=xml_data,
-        feed_type=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
-        marketplaceids=[marketplace.marketplace_id]
-    )
-    return handle_feed_submission_response(marketplace.merchant,
-                                           response.parsed, feed_xml=xml_data)
+    try:
+        response = feeds_api.submit_feed(
+            feed=xml_data, feed_type=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
+            marketplaceids=[marketplace.marketplace_id])
+    except MWSError:
+        logger.error(
+            "failed submitting feed to switch fulfillment", exc_info=1,
+            extra={'seller_id': seller_id, 'feed_xml': xml_data,
+                   'marketplace_id': marketplace.marketplace_id,
+                   'product_ids': [p.id for p in products]})
+        raise
+    return handle_feed_submission_response(
+        marketplace.merchant, response.parsed, feed_xml=xml_data)

@@ -28,13 +28,6 @@ API Reference
    :maxdepth: 2
 
 
-Fulfillment
------------
-
-.. automodule:: oscar_mws.fulfillment.gateway
-    :members:
-
-
 Models and Mixins
 -----------------
 
@@ -45,10 +38,23 @@ Models and Mixins
     :members:
 
 
+Feeds
+-----
+
+.. automodule:: oscar_mws.feeds.gateway
+    :members:
+
+
+Fulfillment
+-----------
+
+.. automodule:: oscar_mws.fulfillment.gateway
+    :members:
+
+
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

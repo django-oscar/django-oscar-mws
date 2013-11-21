@@ -70,7 +70,7 @@ class ProductListView(FormMixin, generic.ListView):
             products = Product.objects.filter(Q(amazon_profile__isnull=False))
         try:
             update_inventory(products)
-        except (feeds_gw.MwsFeedError, MWSError):
+        except MWSError:
             messages.error(
                 self.request, "An error occured updating available stock")
         else:
@@ -81,34 +81,35 @@ class ProductListView(FormMixin, generic.ListView):
         products = self.get_selected_products(form)
         if not products:
             products = Product.objects.filter(
-                Q(amazon_profile=None) | Q(amazon_profile__asin=u'')
-            )
+                Q(amazon_profile=None) | Q(amazon_profile__asin=u''))
         try:
             submissions = feeds_gw.submit_product_feed(
-                products=products,
-                marketplaces=[marketplace],
-            )
+                products=products, marketplaces=[marketplace])
         except feeds_gw.MwsFeedError:
-            messages.info(self.request, "Submitting feed failed")
-        else:
-            submission_links = []
-            for submission in submissions:
-                submission_links.append(
-                    "<a href='{0}'>{1}</a>".format(
-                        reverse(
-                            'mws-dashboard:submission-detail',
-                            kwargs={'submission_id': submission.submission_id}
-                        ),
-                        submission.submission_id
-                    )
-                )
             messages.info(
                 self.request,
-                "Submitted succesfully as ID(s) {0}".format(
-                    ', '.join(submission_links)
-                ),
-                extra_tags='safe',
-            )
+                ("cannot submit products to marketplaces of different "
+                 "merchants within the same feed"))
+            return
+        except MWSError:
+            messages.info(self.request, "Submitting feed to MWS failed")
+            return
+
+        submission_links = []
+        for submission in submissions:
+            submission_links.append(
+                "<a href='{0}'>{1}</a>".format(
+                    reverse(
+                        'mws-dashboard:submission-detail',
+                        kwargs={'submission_id': submission.submission_id}),
+                    submission.submission_id))
+        messages.info(
+            self.request,
+            "Submitted succesfully as ID(s) {0}".format(
+                ', '.join(submission_links)
+            ),
+            extra_tags='safe',
+        )
 
     def handle_switch_to_afn(self, marketplace, form):
         products = self.get_selected_products(form)
@@ -119,9 +120,7 @@ class ProductListView(FormMixin, generic.ListView):
             )
         if not products:
             messages.error(
-                self.request,
-                _('No products specified to switch to AFN'),
-            )
+                self.request, _('No products specified to switch to AFN'))
             return
         AmazonProfile.objects.filter(
             product__in=[p.id for p in products],
@@ -130,18 +129,13 @@ class ProductListView(FormMixin, generic.ListView):
         )
         try:
             submission = feeds_gw.switch_product_fulfillment(
-                marketplace,
-                products=products,
-            )
-        except feeds_gw.MwsFeedError:
+                marketplace, products=products)
+        except MWSError:
             messages.info(self.request, "Submitting feed failed")
         else:
             messages.info(
-                self.request,
-                "Submitted succesfully as ID {0}".format(
-                    submission.submission_id
-                )
-            )
+                self.request, "Submitted succesfully as ID {0}".format(
+                    submission.submission_id))
 
     def handle_update_product_identifiers(self, marketplace, form):
         products = self.get_selected_products(form)
@@ -150,16 +144,11 @@ class ProductListView(FormMixin, generic.ListView):
                 amazon_profile__marketplaces__isnull=False
             )
         try:
-            feeds_gw.update_product_identifiers(
-                marketplace.merchant,
-                products,
-            )
+            feeds_gw.update_product_identifiers(marketplace.merchant, products)
         except MWSError as exc:
-            messages.error(
-                self.request,
-                "An error occurred retrieving product data from "
-                "Amazon: {0}".format(exc.message)
-            )
+            messages.error(self.request,
+                           "An error occurred retrieving product data from "
+                           "Amazon: {0}".format(exc.message))
         else:
             messages.info(self.request, "Updated product ASINs")
 
@@ -269,18 +258,21 @@ class SubmissionUpdateView(generic.View):
 
         try:
             feeds_gw.update_feed_submission(submission)
-        except feeds_gw.MwsFeedError:
+        except MWSError:
             messages.error(self.request, "Updating submission status failed")
             return HttpResponseRedirect(self.redirect_url)
         else:
             messages.info(
                 self.request,
-                "Updated feed submission {0}".format(submission_id)
-            )
+                "Updated feed submission {0}".format(submission_id))
 
         if submission.processing_status == STATUS_DONE:
-            feeds_gw.process_submission_results(submission)
-
+            try:
+                feeds_gw.process_submission_results(submission)
+            except MWSError:
+                messages.error(
+                    "could not retrieve submission result for {}".format(
+                        submission.submission_id))
         return HttpResponseRedirect(self.redirect_url)
 
 
