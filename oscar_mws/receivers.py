@@ -28,7 +28,7 @@ def submit_order_to_mws(order, user, **kwargs):
     submitted_orders = order_creator.create_fulfillment_order(order)
     gateway.submit_fulfillment_orders(submitted_orders)
 
-    failed_orders = [fo.number
+    failed_orders = [fo.fulfillment_id
                      for fo in submitted_orders
                      if fo.status == fo.SUBMISSION_FAILED]
     if len(failed_orders) > 0:
@@ -39,4 +39,4 @@ def submit_order_to_mws(order, user, **kwargs):
     else:
         logger.info(
             _("Successfully submitted {0} orders to Amazon").format(
-                ', '.join([fo.number for fo in submitted_orders])))
+                ', '.join([fo.fulfillment_id for fo in submitted_orders])))
