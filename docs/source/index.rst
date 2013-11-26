@@ -32,6 +32,7 @@ Models and Mixins
 -----------------
 
 .. automodule:: oscar_mws.models
+.. automodule:: oscar_mws.abstract_models
     :members:
 
 .. automodule:: oscar_mws.mixins

@@ -133,6 +133,14 @@ FEED_TYPES = (
 
 
 class AbstractFeedSubmission(models.Model):
+    """
+    A feed submission represents a submitted XML feed to Amazon MWS. Updating
+    product-related data such as the product details themselves, their
+    inventory or price, an XML feed has to generated and submitted to MWS using
+    their Feeds API. When a feed is submitted successfully, i.e. there haven't
+    been any transmission error, Amazon responds with a submission ID. This ID
+    can than be used to check the status of this feed.
+    """
     submission_id = models.CharField(
         _("Submission ID"),
         max_length=64,
@@ -147,22 +155,14 @@ class AbstractFeedSubmission(models.Model):
     date_updated = models.DateTimeField(_("Date updated"))
     date_submitted = models.DateTimeField(_("Date submitted"))
     processing_status = models.CharField(
-        _("Processing status"),
-        max_length=200,
-        choices=PROCESSING_STATUSES
-    )
+        _("Processing status"), max_length=200, choices=PROCESSING_STATUSES)
 
     merchant = models.ForeignKey(
-        "MerchantAccount",
-        verbose_name=_("Merchant account"),
-        related_name="feed_submissions",
-        null=True, blank=False,
-    )
+        "MerchantAccount", verbose_name=_("Merchant account"),
+        related_name="feed_submissions", null=True, blank=False)
     submitted_products = models.ManyToManyField(
-        'catalogue.Product',
-        verbose_name=_("Submitted products"),
-        related_name="feed_submissions",
-    )
+        'catalogue.Product', verbose_name=_("Submitted products"),
+        related_name="feed_submissions")
     feed_xml = models.TextField(_("Submitted XML feed"), null=True, blank=True)
 
     def save(self, **kwargs):
@@ -180,11 +180,17 @@ class AbstractFeedSubmission(models.Model):
 
 
 class AbstractFeedReport(models.Model):
+    """
+    A report related to a feed submission. Whenever Amazon has finished
+    processing a feed, a processing report for the feed can be retrieved from
+    the API. A report is tied to a specific :class:`FeedSubmission
+    <oscar.abstract_models.AbstractFeedSubmission>` ID and contains details
+    about the processing status code, the nmber of processed items in the feed,
+    how many of these where successful or produced errors/warnings.
+    """
     submission = models.OneToOneField(
-        'oscar_mws.FeedSubmission',
-        verbose_name=_("Feed submission"),
-        related_name='report',
-    )
+        'oscar_mws.FeedSubmission', verbose_name=_("Feed submission"),
+        related_name='report')
     status_code = models.CharField(_("Status code"), max_length=100)
     processed = models.PositiveIntegerField(_("Processed messages"))
     successful = models.PositiveIntegerField(_("Successful messages"))
@@ -193,35 +199,49 @@ class AbstractFeedReport(models.Model):
 
     def __unicode__(self):
         return "Report for submission #{0}".format(
-            self.submission.submission_id
-        )
+            self.submission.submission_id)
 
     class Meta:
         abstract = True
 
 
 class AbstractFeedResult(models.Model):
+    """
+    A feed result represents a reported warning or error for a specific item
+    in a feed submission. The feed result is part of a feed report and contains
+    more details about the item with an error or warning. A result is provided
+    for each warning or error, so multiple results can be related to the same
+    item in a feed report.
+    """
     message_code = models.CharField(_("Message code"), max_length=100)
     description = models.TextField(_("Description"))
     type = models.CharField(_("Result type"), max_length=100)
 
     feed_report = models.ForeignKey(
-        'oscar_mws.FeedReport',
-        verbose_name=_("Feed report"),
-        related_name="results"
-    )
+        'oscar_mws.FeedReport', verbose_name=_("Feed report"),
+        related_name="results")
     product = models.ForeignKey(
-        'catalogue.Product',
-        verbose_name=_("Product"),
-        related_name="+",
-        null=True, blank=True
-    )
+        'catalogue.Product', verbose_name=_("Product"),
+        related_name="+", null=True, blank=True)
 
     class Meta:
         abstract = True
 
 
 class AbstractAmazonProfile(models.Model):
+    """
+    An Amazon profile provides Amazon-specific attributes and settings for a
+    product and connects it to Amazon maketplaces and the related merchant
+    account(s). The most important (and required) attributes are the ``sku``
+    and the ``marketplaces``. The ``sku`` is usually referred to in the Amazon
+    MWS API as *SellerSku* and is the unique identifier used when communicating
+    with MWS. If a product has no ``sku`` it cannot be used with MWS.
+    The ``marketplaces`` define on wich marketplace(s) on Amazon the product
+    is available and can be sold. A product can be available on one or many
+    marketplaces. The marketplaces can belong to the same merchant account but
+    don't have to, marketplaces themselves know what merchant account they
+    belong to.
+    """
     FULFILLMENT_BY_AMAZON = "AFN"
     FULFILLMENT_BY_MERCHANT = "MFN"
     FULFILLMENT_TYPES = (
@@ -232,57 +252,55 @@ class AbstractAmazonProfile(models.Model):
     # We don't necessarily get the ASIN back right away so we need
     # to be able to create a profile without a ASIN
     asin = models.CharField(_("ASIN"), max_length=10, blank=True)
-    sku = models.CharField(_("SKU"), max_length=64)
+    sku = models.CharField(_("SKU"), max_length=64, db_index=True)
     product = models.OneToOneField(
-        'catalogue.Product',
-        verbose_name=_("Product"),
-        related_name="amazon_profile"
-    )
+        'catalogue.Product', verbose_name=_("Product"),
+        related_name="amazon_profile")
     product_tax_code = models.CharField(
-        _("Product tax code"),
-        max_length=200,
-        help_text=_("Only required in Canada, Europe and Japan"),
-        blank=True,
-    )
+        _("Product tax code"), max_length=200, blank=True,
+        help_text=_("Only required in Canada, Europe and Japan"))
     launch_date = models.DateTimeField(
         _("Launch date"),
         help_text=_("Controls when the products becomes searchable/browsable"),
-        null=True,
-        blank=True,
-    )
+        null=True, blank=True)
     release_date = models.DateTimeField(
-        _("Release date"),
-        help_text=_("Controls when the product becomes buyable"),
-        null=True,
-        blank=True,
-    )
+        _("Release date"), null=True, blank=True,
+        help_text=_("Controls when the product becomes buyable"))
     item_package_quantity = models.PositiveIntegerField(
-        _("Item package quantity"),
-        null=True,
-        blank=True,
-    )
+        _("Item package quantity"), null=True, blank=True)
     number_of_items = models.PositiveIntegerField(
-        _("Number of items"),
-        null=True,
-        blank=True,
-    )
+        _("Number of items"), null=True, blank=True)
     fulfillment_by = models.CharField(
-        _("Fulfillment by"),
-        max_length=3,
-        choices=FULFILLMENT_TYPES,
-        default=FULFILLMENT_BY_MERCHANT,
-    )
-
+        _("Fulfillment by"), max_length=3, choices=FULFILLMENT_TYPES,
+        default=FULFILLMENT_BY_MERCHANT)
     marketplaces = models.ManyToManyField(
-        'AmazonMarketplace',
-        verbose_name=_("Marketplaces"),
-        related_name="amazon_profiles",
-    )
+        'AmazonMarketplace', verbose_name=_("Marketplaces"),
+        related_name="amazon_profiles")
 
     def get_item_type(self):
         return self.product.product_class
 
     def get_standard_product_id(self):
+        """
+        When creating a MWS feed, a product requires a ``StandardProductID`` to
+        be defined. This method looks up the ID and returns the appropriate
+        value. This method should be overwritten if you have a non-standard
+        way of defining the standard product ID.
+
+        By default, the ``ASIN`` of the product is return if it is available on
+        the profile. Otherwise, the ``UPC`` of the related product is used and
+        submitted as *UPC* type. It returns ``None`` if both strategies fail.
+        The returned element is a DOM element following the structure defined
+        in the MWS Feeds API, e.g. for an ASIN it returns the equivalent of::
+
+            <StandardProductID>
+                <Type>ASIN</Type>
+                <Value>123124125</Value>
+            </StandardProductID>
+
+        :rtype Element: a ``ElementTree element`` representing the XML for a
+            standard product ID as shown above.
+        """
         if self.asin:
             return E.StandardProductID(E.Type("ASIN"), E.Value(self.asin))
         if self.product.upc and 7 < len(self.product.upc) < 16:
@@ -306,6 +324,14 @@ class AbstractAmazonProfile(models.Model):
 
 
 class AbstractFulfillmentOrder(models.Model):
+    """
+    A fulfillment order corresponds to the order submitted to MWS requesting
+    fulfillment by Amazon. It is related to a single Oscar order and can
+    include all or a subset of the order lines in this order. The reason for
+    this is due to MWS only allowing orders to a single shipping address. To
+    support orders with multiple addresses, an Oscar order has to be split up
+    into multiple fulfillment orders.
+    """
     # Statuses for internal use only
     UNSUBMITTED = 'UNSUBMITTED'
     SUBMISSION_FAILED = 'SUBMISSION_FAILED'
@@ -358,12 +384,33 @@ class AbstractFulfillmentOrder(models.Model):
     date_updated = models.DateTimeField(_("Date last updated"))
 
     def get_items(self):
+        """
+        Get a list of items included in the fulfillment order corresponding to
+        the ``Items`` element in the ``CreateFulfillmentOrder`` of th MWS API.
+        Each item is a serialisation of the corresponding
+        :class:`FulfillmentOrderLine
+        <oscar_mws.abstract_models.AbstractFulfillmentOrderLine>` associated
+        with this fulfillment order. It contains the query parameters used
+        when submitting the fulfillment order to MWS.
+
+        :rtype list: a list of dictionaries corresponding to the serialised
+            fulfillment lines of this order.
+        """
         items = []
         for line in self.lines.all().prefetch_related('fulfillment_line'):
             items.append(line.fulfillment_line.get_item_kwargs())
         return items
 
     def get_destination_address(self):
+        """
+        Get the serialised destination address as required when submitting to
+        fulfillment order to MWS. The ``shipping_address`` is serialised into
+        an ``OrderedDict`` with keys corresponding to the requirements in the
+        ``CreateFulfillmentOrder`` API.
+
+        :rtype OrderedDict: MWS-ready serialisation of this orders shipping
+            address.
+        """
         return OrderedDict(
             Name=self.shipping_address.name,
             Line1=self.shipping_address.line1,
@@ -376,6 +423,14 @@ class AbstractFulfillmentOrder(models.Model):
         )
 
     def get_order_kwargs(self):
+        """
+        Get the keyword arguments for this order as required by the
+        :func:`submitl_fulfillment_order
+        <oscar_mws.fulfillment.gateway.submit_fulfillment_order>` function.
+
+        :rtype dict: dictionary of keyword arguments required when submitting
+            the order to MWS.
+        """
         kwargs = {
             'order_id': self.fulfillment_id,
             'displayable_order_id': self.fulfillment_id,
@@ -401,26 +456,26 @@ class AbstractFulfillmentOrder(models.Model):
 
 
 class AbstractFulfillmentShipment(models.Model):
+    """
+    A shipment of all or some of the items in an order. A shipment is
+    returned by MWS when requesting details about a specific fulfillment order.
+    A shipment contains of one or more packages that are the physical entities
+    that are shipped by Amazon. They are stored in the related
+    :class:`FulfillmentShipmentPackage
+    <oscar_mws.abstract_models.AbstractShipmentPackage>`.
+    """
     shipment_id = models.CharField(_("Amazon shipment ID"), max_length=64)
     fulfillment_center_id = models.CharField(
-        _("Fulfillment center ID"),
-        max_length=64
-    )
+        _("Fulfillment center ID"), max_length=64)
     order = models.ForeignKey(
-        "order.Order",
-        verbose_name=_("Order"),
-        related_name="fulfillment_shipments",
-    )
+        "order.Order", verbose_name=_("Order"),
+        related_name="fulfillment_shipments")
     shipment_events = models.ManyToManyField(
-        'order.ShippingEvent',
-        verbose_name=_("Shipping events"),
-        related_name="fulfillment_shipments",
-    )
+        'order.ShippingEvent', verbose_name=_("Shipping events"),
+        related_name="fulfillment_shipments")
     status = models.CharField(_("Shipment status"), max_length=24)
     date_estimated_arrival = models.DateTimeField(
-        _("Estimated arrival"),
-        null=True, blank=True,
-    )
+        _("Estimated arrival"), null=True, blank=True)
     date_shipped = models.DateTimeField(_("Shipped"), null=True, blank=True)
 
     def __unicode__(self):
@@ -431,15 +486,19 @@ class AbstractFulfillmentShipment(models.Model):
 
 
 class AbstractShipmentPackage(models.Model):
+    """
+    A shipment package is the actual package shipped by Amazon and provides
+    information about the carrier and the corresponding tracking number. It is
+    part of a :class:`FulfillmentShipment
+    <oscar_mws.abstract_models.AbstractFulfillmentShipment>`.
+    """
     package_number = models.IntegerField(_("Package number"))
     tracking_number = models.CharField(_("Tracking number"), max_length=255)
     carrier_code = models.CharField(_("Carrier code"), max_length=255)
 
     fulfillment_shipment = models.ForeignKey(
-        'oscar_mws.FulfillmentShipment',
-        verbose_name=_("Fulfillment shipment"),
-        related_name="packages"
-    )
+        'oscar_mws.FulfillmentShipment', related_name="packages",
+        verbose_name=_("Fulfillment shipment"))
 
     def __unicode__(self):
         return "Package {0} delivered by {1}".format(
@@ -452,31 +511,26 @@ class AbstractShipmentPackage(models.Model):
 
 
 class AbstractFulfillmentOrderLine(models.Model):
+    """
+    A fulfillment order line corresponds to an order line in the MWS
+    fulfillemnt order and relates it with the actual order line in Oscar. It
+    contains the quantity submitted to Amazon, as well as a reference number
+    for the item within the order (similar to the line refrence in Oscar).
+    """
     line = models.OneToOneField(
-        'order.Line',
-        verbose_name=_("Line"),
-        related_name="fulfillment_line",
-    )
+        'order.Line', verbose_name=_("Line"), related_name="fulfillment_line")
     fulfillment_order = models.ForeignKey(
-        'oscar_mws.FulfillmentOrder',
-        verbose_name=_("Fulfillment order"),
-        related_name="fulfillment_lines",
-    )
+        'oscar_mws.FulfillmentOrder', verbose_name=_("Fulfillment order"),
+        related_name="fulfillment_lines")
     order_item_id = models.CharField(
-        _("Seller fulfillment order item ID"),
-        max_length=50,
-    )
+        _("Seller fulfillment order item ID"), max_length=50)
 
     shipment = models.ForeignKey(
-        'oscar_mws.FulfillmentShipment',
-        verbose_name=_("Fulfillment shipment"),
-        related_name="order_lines",
-        null=True, blank=True,
-    )
+        'oscar_mws.FulfillmentShipment', null=True, blank=True,
+        verbose_name=_("Fulfillment shipment"), related_name="order_lines")
     package = models.ForeignKey(
         'oscar_mws.ShipmentPackage', related_name="order_lines",
-        verbose_name=_("Fulfillment shipment package"),
-        null=True, blank=True)
+        verbose_name=_("Fulfillment shipment package"), null=True, blank=True)
 
     quantity = models.PositiveIntegerField(_("Quantity"))
     price_incl_tax = models.DecimalField(
@@ -502,6 +556,13 @@ class AbstractFulfillmentOrderLine(models.Model):
 
     @property
     def status(self):
+        """
+        The shipping status of this item. As long as there is no shipment
+        details available from MWS, the status of the line corresponds to the
+        status of the fulfillment order. Otherwise, the status of the shipment
+        for this line is return.
+        :rtype str: shipping status of this line.
+        """
         if self.shipment:
             return self.shipment.status
         return self.fulfillment_order.status
@@ -509,14 +570,34 @@ class AbstractFulfillmentOrderLine(models.Model):
     def __unicode__(self):
         return "Line {0} on {1}".format(
             self.line.product.amazon_profile.sku,
-            self.fulfillment_order.fulfillment_id
-        )
+            self.fulfillment_order.fulfillment_id)
 
     class Meta:
         abstract = True
 
 
 class AbstractMerchantAccount(models.Model):
+    """
+    A merchant account represent the merchant or seller registered with Amazon
+    to use the MWS API. In general, there is a single merchant account for each
+    region, e.g. US or EU. A seller can operate in multiple marketplaces within
+    the given region. The merchant account and the associated region defines
+    the communication endpoint with the MWS API and the ``region`` attribute
+    is used to determine the appropriate API endpoint to use when sending
+    requests to MWS.
+    Each merchant account has their own API credentials, i.e. AWS API key and
+    secret as well as the merchant/seller ID. These values have to be specified
+    to be able to make requests to the MWS API. These credentials can be found
+    in the seller central account for the given merchant account.
+
+    Using Amazon MWS for fulfillment corresponds to Amazon being a fulfillment
+    partner for these items. For the stock and pricing framework in Oscar to
+    work correctly, a :class:`Partner <oscar.apps.partner.Partner>` is required
+    that corresponds to this merchant account. A partner is automatically
+    created for each new merchant account on first save. This allows for the
+    merchant account to be used as fulfillment partner when specifying stock
+    records for products in Oscar.
+    """
     REGION_CHOICES = (
         (oscar_mws.MWS_REGION_US, _("United States (US)")),
         (oscar_mws.MWS_REGION_CA, _("Canada (CA)")),
@@ -537,11 +618,8 @@ class AbstractMerchantAccount(models.Model):
     seller_id = models.CharField(_("Seller/Merchant ID"), max_length=200)
 
     partner = models.OneToOneField(
-        "partner.Partner",
-        verbose_name=_("Partner"),
-        related_name="amazon_merchant",
-        null=True, blank=True
-    )
+        "partner.Partner", verbose_name=_("Partner"),
+        related_name="amazon_merchant", null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if not self.partner:
