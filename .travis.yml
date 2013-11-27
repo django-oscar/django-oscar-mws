@@ -14,6 +14,6 @@ install:
 - pip install . --use-mirrors
 - pip install -r requirements.txt --use-mirrors
 script:
-- py.test --cov oscar_mws -m 'not integration'
+- py.test --pep8 --cov oscar_mws -m 'not integration'
 after_success:
 - coveralls

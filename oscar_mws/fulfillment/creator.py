@@ -83,7 +83,8 @@ class FulfillmentOrderCreator(object):
                 line=line_adapter.line, fulfillment_order=fulfillment_order)
 
         line_kwargs = line_adapter.get_fields()
-        line.order_item_id = line_adapter.get_seller_fulfillment_order_item_id()
+        line.order_item_id = \
+            line_adapter.get_seller_fulfillment_order_item_id()
         line.quantity = line_kwargs.get('Quantity')
         line.comment = line_kwargs.get('DisplayableOrderComment', '')
         price = line_kwargs.get('PerUnitDeclaredValue')

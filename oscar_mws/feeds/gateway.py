@@ -20,7 +20,7 @@ MerchantAccount = get_model('oscar_mws', 'MerchantAccount')
 
 
 OP_TYPE_UPDATE = 'Update'
-OP_TYPE_PARTIAL_UPDATE= 'PartialUpdate'
+OP_TYPE_PARTIAL_UPDATE = 'PartialUpdate'
 OP_TYPE_DELETE = 'Delete'
 
 

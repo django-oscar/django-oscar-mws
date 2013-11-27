@@ -1,7 +1,8 @@
 from django.utils.translation import ugettext_lazy as _
 
 # Callable that returns an appropriate region for a given order and address
-MWS_FULFILLMENT_MERCHANT_FINDER = 'oscar_mws.fulfillment.finders.default_merchant_finder'
+MWS_FULFILLMENT_MERCHANT_FINDER = \
+    'oscar_mws.fulfillment.finders.default_merchant_finder'
 
 MWS_DEFAULT_SHIPPING_SPEED = 'Standard'
 
