@@ -17,7 +17,7 @@ class TestUpdateStockLevels(TestCase):
         self.stock_record.num_allocated = 0
 
     def test_when_both_fields_are_zero(self):
-        self.stock_record.set_amazon_supply_quantity(12)
+        self.stock_record.set_amazon_supply_quantity('12')
         self.assertEquals(self.stock_record.num_in_stock, 12)
         self.assertEquals(self.stock_record.num_allocated, 0)
         self.stock_record.save.assert_called_once_with()
@@ -25,7 +25,7 @@ class TestUpdateStockLevels(TestCase):
     def test_when_stock_is_allocated(self):
         self.stock_record.num_in_stock = 10
         self.stock_record.num_allocated = 5
-        self.stock_record.set_amazon_supply_quantity(12)
+        self.stock_record.set_amazon_supply_quantity('12')
         self.assertEquals(self.stock_record.num_in_stock, 12)
         self.assertEquals(self.stock_record.num_allocated, 0)
         self.stock_record.save.assert_called_once_with()

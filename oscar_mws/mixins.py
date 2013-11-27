@@ -34,7 +34,7 @@ class AmazonStockTrackingMixin(object):
         """
         logger.info(
             'setting stock record to MWS supply quantity: {}'.format(quantity))
-        self.num_in_stock = quantity
+        self.num_in_stock = int(quantity)
         self.num_allocated = 0
         if commit:
             self.save()

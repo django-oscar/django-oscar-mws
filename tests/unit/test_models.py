@@ -61,6 +61,12 @@ class TestAmazonProfile(TestCase):
         stockrecord = profile.product.stockrecords.all()[0]
         self.assertNotEquals(profile.sku, stockrecord.partner_sku)
 
+    def test_deleting_profile_does_not_delete_associated_product(self):
+        profile = factories.AmazonProfileFactory()
+        self.assertEquals(Product.objects.count(), 1)
+        profile.delete()
+        self.assertEquals(Product.objects.count(), 1)
+
 
 class TestFulfillmentOrderLineStatus(TestCase):
 

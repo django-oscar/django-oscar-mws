@@ -6,10 +6,13 @@ from django.test import TestCase
 from django.db.models import get_model
 
 from oscar.test.factories import create_order
+from oscar.apps.partner.models import StockRecord
 
+from oscar_mws import mixins as mws_mixins
 from oscar_mws.test import mixins, factories
 from oscar_mws.fulfillment.creator import FulfillmentOrderCreator
-from oscar_mws.fulfillment.gateway import update_fulfillment_order
+from oscar_mws.fulfillment.gateway import (
+    update_fulfillment_order, update_inventory)
 
 ShippingEvent = get_model('order', 'ShippingEvent')
 ShippingEventType = get_model('order', 'ShippingEventType')
@@ -142,5 +145,63 @@ class TestGetFulfillmentOrder(mixins.DataLoaderMixin, TestCase):
 
         self.assertItemsEqual(
             [s.notes for s in shipping_events],
-            ['* Shipped package via Magic Parcels with tracking number MPT_1234']
+            ['* Shipped package via Magic Parcels with tracking number '
+             'MPT_1234']
         )
+
+
+class TestUpdateInventory(mixins.DataLoaderMixin, TestCase):
+
+    def setUp(self):
+        super(TestUpdateInventory, self).setUp()
+        self.original_bases = StockRecord.__bases__
+        if not mws_mixins.AmazonStockTrackingMixin in StockRecord.__bases__:
+            StockRecord.__bases__ += (mws_mixins.AmazonStockTrackingMixin,)
+
+        marketplace = factories.AmazonMarketplaceFactory()
+        product = factories.ProductFactory(
+            stockrecord__partner=marketplace.merchant.partner,
+            amazon_profile__sku='SKU_12345')
+        self.profile = product.amazon_profile
+        self.profile.marketplaces.add(marketplace)
+
+        self.assertEquals(self.profile.product.stockrecords.count(), 1)
+        self.stockrecord = self.profile.product.stockrecords.all()[0]
+        self.assertFalse(self.stockrecord.num_in_stock)
+        self.assertFalse(self.stockrecord.num_allocated)
+
+    def tearDown(self):
+        super(TestUpdateInventory, self).tearDown()
+        StockRecord.__bases__ = self.original_bases
+
+    @httpretty.activate
+    def test_with_no_stock_on_stock_record(self):
+        xml_data = self.load_data('list_inventory_supply_response.xml')
+        httpretty.register_uri(
+            httpretty.POST,
+            'https://mws.amazonservices.com/FulfillmentInventory/2010-10-01',
+            body=xml_data)
+
+        update_inventory([self.profile.product])
+
+        stockrecord = StockRecord.objects.get(id=self.stockrecord.id)
+        self.assertEquals(stockrecord.num_in_stock, 3)
+        self.assertEquals(stockrecord.num_allocated, 0)
+
+    @httpretty.activate
+    def test_with_invalid_stock_value_in_response(self):
+        xml_data = self.load_data('list_inventory_supply_response.xml')
+        xml_data = xml_data.replace(
+            "<InStockSupplyQuantity>3</InStockSupplyQuantity>",
+            "<InStockSupplyQuantity>INVALID</InStockSupplyQuantity>")
+        print xml_data
+        httpretty.register_uri(
+            httpretty.POST,
+            'https://mws.amazonservices.com/FulfillmentInventory/2010-10-01',
+            body=xml_data)
+
+        update_inventory([self.profile.product])
+
+        stockrecord = StockRecord.objects.get(id=self.stockrecord.id)
+        self.assertFalse(stockrecord.num_in_stock)
+        self.assertFalse(stockrecord.num_allocated)

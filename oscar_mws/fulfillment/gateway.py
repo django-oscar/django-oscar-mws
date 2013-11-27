@@ -339,6 +339,17 @@ def update_inventory(products):
                             'seller_sku': inventory.SellerSKU,
                             'seller_id': seller_id})
                     continue
-            stockrecord.set_amazon_supply_quantity(
-                inventory.InStockSupplyQuantity, commit=False)
+            try:
+                quantity = int(inventory.InStockSupplyQuantity)
+            except (ValueError, TypeError):
+                logger.error(
+                    "could not convert '{}' to integer for stock "
+                    "record".format(inventory.InStockSupplyQuantity),
+                    exc_info=1,
+                    extra={'seller_id': seller_id, 'sku': inventory.SellerSKU,
+                           'response': response,
+                           'value': inventory.InStockSupplyQuantity})
+            else:
+                stockrecord.set_amazon_supply_quantity(quantity, commit=False)
+
             stockrecord.save()

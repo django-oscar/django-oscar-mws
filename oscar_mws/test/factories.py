@@ -21,6 +21,7 @@ class UserFactory(factory.DjangoModelFactory):
     email = 'peter@petoria.pt'
     password = 'plaintext'
 
+
 class CountryFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('address', 'Country')
 

@@ -1,0 +1,22 @@
+<ListInventorySupplyResponse xmlns="http://mws.amazonaws.com/FulfillmentInventory/2010-10-01/">
+  <ListInventorySupplyResult>
+    <InventorySupplyList>
+      <member>
+        <SellerSKU>SKU_12345</SellerSKU>
+        <ASIN>ASIN_12345</ASIN>
+        <TotalSupplyQuantity>15</TotalSupplyQuantity>
+        <FNSKU>FAKEFNSKU</FNSKU>
+        <Condition>NewItem</Condition>
+        <InStockSupplyQuantity>3</InStockSupplyQuantity>
+        <SupplyDetail/>
+        <EarliestAvailability>
+          <TimepointType>Immediately</TimepointType>
+        </EarliestAvailability>
+      </member>
+    </InventorySupplyList>
+  </ListInventorySupplyResult>
+  <ResponseMetadata>
+    <RequestId>1231</RequestId>
+  </ResponseMetadata>
+</ListInventorySupplyResponse>
+
