@@ -7,4 +7,4 @@ pudb>=2013.3.4
 bpython>=0.12
 
 tox>=1.4.2
-pytest-sugar==0.2.1
+pytest-sugar==0.3.4
