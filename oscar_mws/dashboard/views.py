@@ -60,6 +60,7 @@ class ProductListView(FormMixin, generic.ListView):
         return self.render_to_response(self.get_context_data())
 
     def get_context_data(self, **kwargs):
+        kwargs['object_list'] = self.object_list
         kwargs[self.context_object_name] = self.object_list
         ctx = super(ProductListView, self).get_context_data(**kwargs)
         form_class = self.get_form_class()
