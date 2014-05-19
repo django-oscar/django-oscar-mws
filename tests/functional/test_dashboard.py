@@ -15,6 +15,7 @@ class TestAmazonProfileDashboard(WebTestCase):
         super(TestAmazonProfileDashboard, self).setUp()
         self.product = factories.ProductFactory(amazon_profile=None)
         self.marketplace = factories.AmazonMarketplaceFactory()
+
         try:
             self.product.amazon_profile
         except AmazonProfile.DoesNotExist:
@@ -29,8 +30,9 @@ class TestAmazonProfileDashboard(WebTestCase):
         form['marketplaces'] = (self.marketplace.id,)
         page = form.submit()
         self.assertRedirects(page, reverse('mws-dashboard:profile-list'))
+
         try:
-            self.product.amazon_profile
+            AmazonProfile.objects.get(product=self.product)
         except AmazonProfile.DoesNotExist:
             self.fail("Amazon profile not created")
 

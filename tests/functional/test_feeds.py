@@ -3,7 +3,7 @@ import httpretty
 from django.test import TestCase
 from django.db.models import get_model
 
-from oscar_testsupport.factories import create_product
+from oscar.test.factories import create_product
 
 from oscar_mws.feeds import gateway
 from oscar_mws import abstract_models as am

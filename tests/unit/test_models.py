@@ -89,9 +89,9 @@ class TestConvertingAFulfillmentLineToItemDict(TestCase):
         super(TestConvertingAFulfillmentLineToItemDict, self).setUp()
         self.line = mwsm.FulfillmentOrderLine(order_item_id='123', quantity=5)
         self.line.line = Line()
-        self.line.line.product = Product()
-        self.line.line.product.amazon_profile = mwsm.AmazonProfile(
-            sku='MY-SKU')
+
+        profile = factories.AmazonProfileFactory(sku='MY-SKU')
+        self.line.line.product = profile.product
 
     def test_returns_correct_data_without_price_or_comment(self):
         expected_kwargs = {
