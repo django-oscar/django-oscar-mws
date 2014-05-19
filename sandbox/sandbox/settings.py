@@ -3,7 +3,8 @@ import os
 
 
 PROJECT_DIR = os.path.dirname(__file__)
-location = lambda x: os.path.join(os.path.dirname(os.path.realpath(__file__)), "../%s" % x)
+location = lambda x: os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "../%s" % x)
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -107,7 +108,6 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.transaction.TransactionMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'oscar.apps.basket.middleware.BasketMiddleware',
 )
 
@@ -152,12 +152,8 @@ DJANGO_APPS = [
     'django_extensions',
 ]
 
-THIRD_PARTY_APPS = [
-    'debug_toolbar',
-]
-
 from oscar import get_core_apps
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ['oscar_mws'] + get_core_apps()
+INSTALLED_APPS = DJANGO_APPS + ['oscar_mws'] + get_core_apps()
 
 AUTHENTICATION_BACKENDS = (
     'oscar.apps.customer.auth_backends.Emailbackend',
@@ -221,8 +217,6 @@ LOGGING = {
         },
     }
 }
-
-INTERNAL_IPS = ('127.0.0.1',)
 
 ########## RUNSCOPE SETTINGS
 RUNSCOPE_BUCKET_KEY = os.getenv('RUNSCOPE_BUCKET_KEY')
