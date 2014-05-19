@@ -18,7 +18,7 @@ setup(
     packages=find_packages(exclude=["sandbox*", "tests*"]),
     include_package_data=True,
     install_requires=[
-        'django-oscar',
+        'django-oscar>=0.6',
         'xmltodict',
         'beautifulsoup>=3.2.1',
         'python-dateutil>=2.1',

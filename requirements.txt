@@ -25,8 +25,5 @@ coverage>=3.5.1
 pyflakes>=0.5.0
 coveralls>=0.1.1,<0.2
 
-# we need this to make sure that we test against Oscar 0.6
--e git+https://github.com/tangentlabs/django-oscar.git@89d12c8701d293f23afa19c6efac17b249ae1b6d#egg=django-oscar
-
 # Others
 Whoosh>=2.4.1
