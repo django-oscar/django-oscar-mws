@@ -22,6 +22,7 @@ setup(
         'xmltodict',
         'beautifulsoup>=3.2.1',
         'python-dateutil>=2.1',
+        'lxml',
     ],
     # See http://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
