@@ -26,7 +26,7 @@ class Command(NoArgsCommand):
     )
 
     def handle_noargs(self, **options):
-        #get all products without a ASIN assigned
+        # get all products without a ASIN assigned
         products = Product.objects.all()
 
         merchant_id = options.get('seller_id')

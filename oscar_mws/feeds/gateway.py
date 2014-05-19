@@ -192,7 +192,7 @@ def update_feed_submissions(merchant):
     ).parsed
 
     if response.HasNext:
-        #TODO: need to handle this flag
+        # TODO: need to handle this flag
         response.NextToken
 
     updated_feeds = []

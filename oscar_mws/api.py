@@ -388,8 +388,6 @@ class Reports(MWS):
 
     ACCOUNT_TYPE = "Merchant"
 
-    ## REPORTS ###
-
     def get_report(self, report_id):
         data = dict(Action='GetReport', ReportId=report_id)
         return self.make_request(data)
@@ -647,8 +645,7 @@ class Sellers(MWS):
         return self.make_request(data)
 
 
-#### Fulfillment APIs ####
-
+# Fulfillment APIs
 
 class InboundShipments(MWS):
     URI = "/FulfillmentInboundShipment/2010-10-01"
