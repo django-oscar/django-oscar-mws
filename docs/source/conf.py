@@ -291,7 +291,7 @@ def process_docstring(app, what, name, obj, options, lines):
     if inspect.isclass(obj) and issubclass(obj, models.Model):
 
         # Grab the field list from the meta class
-        fields = obj._meta._fields()
+        fields = obj._meta.fields
 
         for field in fields:
             # Decode and strip any html out of the field's help text
