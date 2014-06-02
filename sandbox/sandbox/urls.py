@@ -11,6 +11,9 @@ admin.autodiscover()
 urlpatterns = patterns(
     '',
     url(r'^admin/', include(admin.site.urls)),
+    # i18n URLS need to live outside of i18n_patterns scope of the shop
+    url(r'^i18n/', include('django.conf.urls.i18n')),
+
     url(r'^dashboard/', include(mws_app.urls)),
     url(r'', include(shop.urls)),
 )
