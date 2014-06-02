@@ -117,17 +117,16 @@ ROOT_URLCONF = 'sandbox.urls'
 WSGI_APPLICATION = 'sandbox.wsgi.application'
 
 # Compressor and pre-compiler settings for django-compressor
-COMPRESS_ENABLED = DEBUG
-COMPRESS_OUTPUT_DIR = 'cache'
+USE_LESS = False
+
+COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
+COMPRESS_PRECOMPILERS = [('text/less', 'lessc {infile} {outfile}')]
 
-COMPRESS_PRECOMPILERS = (
-    ('text/coffeescript', 'coffee --compile --stdio'),
-    ('text/less', 'lessc {infile} {outfile}'),
-)
-
-if DEBUG:
-    COMPRESS_JS_FILTERS = []
+COMPRESS_OFFLINE_CONTEXT = {
+    'STATIC_URL': 'STATIC_URL',
+    'use_less': USE_LESS,
+}
 
 from oscar import OSCAR_MAIN_TEMPLATE_DIR
 
