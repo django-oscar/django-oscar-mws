@@ -21,6 +21,11 @@ def pytest_configure():
     DEFAULT_SETTINGS.update(OSCAR_MWS_SETTINGS)
     DEFAULT_SETTINGS['OSCAR_DEFAULT_CURRENCY'] = 'USD'
 
+    # we use this to avoid throttling by MWS when checking the API
+    INTEGRATION_WAIT_TIME = 15
+    if os.getenv('TRAVIS'):
+        INTEGRATION_WAIT_TIME = 30
+
     settings.configure(
         DATABASES={
             'default': {
@@ -103,7 +108,7 @@ def pytest_configure():
             'disable_existing_loggers': True,
             'formatters': {
                 'verbose': {
-                    'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+                    'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'  # noqa
                 },
                 'simple': {
                     'format': '%(levelname)s %(message)s'
@@ -140,5 +145,6 @@ def pytest_configure():
             }
         },
         DEBUG=True,
+        INTEGRATION_WAIT_TIME=INTEGRATION_WAIT_TIME,
         **DEFAULT_SETTINGS
     )

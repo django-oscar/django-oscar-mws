@@ -1,6 +1,7 @@
 import time
 import pytest
 
+from django.conf import settings
 from django.test import TestCase
 
 from oscar.test.factories import create_order
@@ -9,6 +10,8 @@ from oscar_mws import abstract_models as am
 from oscar_mws.test import factories, mixins
 from oscar_mws.feeds import gateway as feeds_gw
 from oscar_mws.fulfillment.creator import FulfillmentOrderCreator
+
+INTEGRATION_WAIT_TIME = settings.INTEGRATION_WAIT_TIME
 
 
 @pytest.mark.integration
@@ -25,7 +28,7 @@ class TestAFulfillmentOrder(mixins.IntegrationMixin, TestCase):
     def _wait_until_submission_processed(self, submission):
         while submission.processing_status not in [am.STATUS_DONE,
                                                    am.STATUS_CANCELLED]:
-            time.sleep(20)  # wait before next polling to avoid throttling
+            time.sleep(INTEGRATION_WAIT_TIME)
             submission = feeds_gw.update_feed_submission(submission)
 
         if submission.processing_status != am.STATUS_DONE:
@@ -44,4 +47,4 @@ class TestAFulfillmentOrder(mixins.IntegrationMixin, TestCase):
         self._wait_until_submission_processed(submission)
 
         creator = FulfillmentOrderCreator()
-        orders = creator.create_fulfillment_order(self.order)
+        creator.create_fulfillment_order(self.order)
