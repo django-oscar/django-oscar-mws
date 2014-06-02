@@ -17,6 +17,7 @@ pytest-pep8==1.0.6
 
 # documentation
 Sphinx==1.2.2
+sphinx_rtd_theme
 
 # Code style and coverage
 flake8>=0.8
