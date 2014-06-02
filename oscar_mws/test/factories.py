@@ -44,6 +44,7 @@ class BasketFactory(factory.DjangoModelFactory):
 
 class AmazonProfileFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('oscar_mws', 'AmazonProfile')
+    FACTORY_DJANGO_GET_OR_CREATE = ('product',)
 
     sku = factory.Sequence(lambda n: "sku_{}".format(str(time())[:10]))
     release_date = now()

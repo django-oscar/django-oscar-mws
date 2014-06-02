@@ -4,8 +4,6 @@ import pytest
 
 from django.test import TestCase
 
-from oscar.test.factories import create_product
-
 from oscar_mws.test import factories
 from oscar_mws.models import AmazonProfile
 from oscar_mws import abstract_models as am
@@ -16,10 +14,10 @@ from oscar_mws.feeds import gateway as feeds_gw
 class TestSubmittingAFeed(TestCase):
 
     def setUp(self):
-        self.product = create_product(
-            upc='9781741173420',
-            title='Kayaking Around Australia',
-        )
+        self.product = factories.ProductFactory(
+            upc='9781741173420', title='Kayaking Around Australia',
+            amazon_profile=None)
+
         self.merchant = factories.MerchantAccountFactory(
             name="Integration Test Account",
             seller_id=os.getenv('SELLER_ID'),
@@ -27,21 +25,20 @@ class TestSubmittingAFeed(TestCase):
             aws_api_secret=os.getenv('AWS_SECRET_ACCESS_KEY'),
         )
         self.marketplace = factories.AmazonMarketplaceFactory(
-            merchant=self.merchant,
-            marketplace_id='ATVPDKIKX0DER',
-        )
+            merchant=self.merchant, marketplace_id='ATVPDKIKX0DER')
 
-        amazon_profile = AmazonProfile.objects.create(product=self.product)
-        amazon_profile.fulfillment_by = AmazonProfile.FULFILLMENT_BY_AMAZON
-        amazon_profile.save()
+        amazon_profile = factories.AmazonProfileFactory(
+            product=self.product,
+            fulfillment_by=AmazonProfile.FULFILLMENT_BY_AMAZON)
 
         amazon_profile.marketplaces.add(self.marketplace)
 
     def _check_submission(self, submission):
         self.assertEquals(submission.processing_status, am.STATUS_SUBMITTED)
 
-        while submission.processing_status not in [am.STATUS_DONE, am.STATUS_CANCELLED]:
-            time.sleep(30)  # wait before next polling to avoid throttling
+        statuses = [am.STATUS_DONE, am.STATUS_CANCELLED]
+        while submission.processing_status not in statuses:
+            time.sleep(20)  # wait before next polling to avoid throttling
             submission = feeds_gw.update_feed_submission(submission)
 
         return submission

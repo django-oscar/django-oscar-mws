@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import base64
 import hashlib
@@ -26,8 +27,10 @@ class IntegrationMixin(object):
 
     def setUp(self):
         super(IntegrationMixin, self).setUp()
+
         self.product = factories.ProductFactory(
             upc='9781741173420', title='Kayaking Around Australia')
+
         self.merchant = factories.MerchantAccountFactory(
             name="Integration Test Account", seller_id=os.getenv('SELLER_ID'),
             aws_api_key=os.getenv('AWS_ACCESS_KEY_ID'),
