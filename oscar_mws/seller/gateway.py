@@ -20,19 +20,18 @@ def update_marketplaces(merchant):
             "could not retrieve marketplaces for merchant {}".format(
                 merchant.seller_id),
             exc_info=1, extra={'seller_id': merchant.seller_id})
+        return []
 
     marketplaces = []
     for rsp_marketplace in response.ListMarketplaces.get_list('Marketplace'):
         try:
             marketplace = AmazonMarketplace.objects.get(
                 marketplace_id=rsp_marketplace.MarketplaceId,
-                merchant=merchant,
-            )
+                merchant=merchant)
         except AmazonMarketplace.DoesNotExist:
             marketplace = AmazonMarketplace(
                 marketplace_id=rsp_marketplace.MarketplaceId,
-                merchant=merchant,
-            )
+                merchant=merchant)
         marketplace.name = rsp_marketplace.Name
         marketplace.domain = rsp_marketplace.DomainName
         marketplace.region = rsp_marketplace.DefaultCountryCode
