@@ -51,7 +51,7 @@ class TestStockRecord(TestCase):
         self.assertFalse(stock_record.is_mws_record)
 
     def test_returns_true_if_it_is_mws_stockrecord(self):
-        self.assertTrue(self.merchant.partner.name.startswith('Amazon'))
+        self.assertTrue(self.merchant.partner.name, self.merchant.name)
         stock_record = StockRecord.objects.create(
             product=factories.ProductFactory(),
             partner=self.merchant.partner)

@@ -619,13 +619,13 @@ class AbstractMerchantAccount(models.Model):
 
     partner = models.OneToOneField(
         "partner.Partner", verbose_name=_("Partner"),
-        related_name="amazon_merchant", null=True, blank=True)
+        related_name="amazon_merchant", null=True, blank=True,
+        help_text=_("if you don't specify a partner, a new one will be "
+                    "created automatically"))
 
     def save(self, *args, **kwargs):
         if not self.partner:
-            self.partner, __ = Partner.objects.get_or_create(
-                name="Amazon {} ({})".format(self.name, self.region)
-            )
+            self.partner, __ = Partner.objects.get_or_create(name=self.name)
         super(AbstractMerchantAccount, self).save(*args, **kwargs)
 
     @property
