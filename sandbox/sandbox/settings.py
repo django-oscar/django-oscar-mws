@@ -152,7 +152,9 @@ DJANGO_APPS = [
 ]
 
 from oscar import get_core_apps
-INSTALLED_APPS = DJANGO_APPS + ['oscar_mws'] + get_core_apps()
+INSTALLED_APPS = DJANGO_APPS + ['oscar_mws'] + get_core_apps([
+    'partner',
+])
 
 AUTHENTICATION_BACKENDS = (
     'oscar.apps.customer.auth_backends.Emailbackend',
