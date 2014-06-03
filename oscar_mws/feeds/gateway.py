@@ -252,25 +252,22 @@ def cancel_submission(submission):
     merchant = submission.merchant
     feeds_api = get_merchant_connection(merchant.seller_id, 'feeds')
     response = feeds_api.cancel_feed_submissions(
-        feedids=[submission.submission_id]
-    ).parsed
+        feedids=[submission.submission_id]).parsed
 
     result = response.get('FeedSubmissionInfo')
     try:
         submission = FeedSubmission.objects.get(
-            submission_id=result.FeedSubmissionId,
-            date_submitted=du_parse(result.SubmittedDate),
-            feed_type=result.FeedType,
-        )
+            submission_id=result.FeedSubmissionId)
     except FeedSubmission.DoesNotExist:
-        submission = FeedSubmission(
+        submission = FeedSubmission.objects.create(
             submission_id=result.FeedSubmissionId,
             date_submitted=du_parse(result.SubmittedDate),
             feed_type=result.FeedType,
             merchant=merchant,
-        )
+            processing_status=result.FeedProcessingStatus)
+        return submission
 
-    if submission.processing_status != result.FeedProcessingStatus:
+    if submission.processing_status == result.FeedProcessingStatus:
         return submission
 
     submission.processing_status = result.FeedProcessingStatus

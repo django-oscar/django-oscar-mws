@@ -89,6 +89,7 @@ class AmazonMarketplaceFactory(factory.DjangoModelFactory):
 
 class FeedSubmissionFactory(factory.DjangoModelFactory):
     FACTORY_FOR = get_model('oscar_mws', 'FeedSubmission')
+    FACTORY_DJANGO_GET_OR_CREATE = ('submission_id',)
 
     merchant = factory.SubFactory(MerchantAccountFactory)
     date_submitted = now()
