@@ -20,7 +20,7 @@ class TestMwsFulfillmentCreatedSignal(TestCase):
 
         mws_fulfillment_created.connect(fake_receiver)
 
-        with mock.patch('oscar_mws.fulfillment.gateway.get_merchant_connection') as gmc_mock:
+        with mock.patch('oscar_mws.fulfillment.gateway.get_merchant_connection') as gmc_mock:  # noqa
             connection_mock = mock.Mock()
             gmc_mock.return_value = connection_mock
             outbound_mock = mock.Mock()
@@ -44,13 +44,10 @@ class TestMwsFulfillmentCreatedSignal(TestCase):
 
         mws_fulfillment_created.connect(fake_receiver)
 
-        with mock.patch('oscar_mws.fulfillment.gateway.get_merchant_connection') as gmc_mock:
-            connection_mock = mock.Mock()
-            gmc_mock.return_value = connection_mock
-            outbound_mock = mock.Mock()
-            connection_mock.outbound = outbound_mock
-            outbound_mock.create_fulfillment_order = mock.MagicMock(
-                side_effect=MWSError())
+        with mock.patch('oscar_mws.fulfillment.gateway.get_merchant_connection') as gmc_mock:  # noqa
+            create_fulfillment_order = mock.MagicMock(side_effect=MWSError())
+            gmc_mock.return_value = mock.Mock(
+                create_fulfillment_order=create_fulfillment_order)
 
             submit_fulfillment_order(fulfillment_order_mock)
 

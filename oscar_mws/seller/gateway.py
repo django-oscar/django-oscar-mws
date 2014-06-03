@@ -11,7 +11,7 @@ AmazonMarketplace = get_model('oscar_mws', 'AmazonMarketplace')
 
 
 def update_marketplaces(merchant):
-    sellers_api = get_merchant_connection(merchant.seller_id).sellers
+    sellers_api = get_merchant_connection(merchant.seller_id, 'sellers')
 
     try:
         response = sellers_api.list_marketplace_participations().parsed

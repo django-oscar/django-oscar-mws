@@ -54,41 +54,15 @@ class Connection(object):
             conn = self.API_CLASSES[name]
         except KeyError:
             raise ImproperlyConfigured(
-                'API {0} is not a valid MWS API class'.format(name)
-            )
-        return conn
-
-    @property
-    def feeds(self):
-        conn = self.get_api_class('feeds')
-        return conn(**self.get_connection_kwargs())
-
-    @property
-    def outbound(self):
-        conn = self.get_api_class('outbound')
-        return conn(**self.get_connection_kwargs())
-
-    @property
-    def sellers(self):
-        conn = self.get_api_class('sellers')
-        return conn(**self.get_connection_kwargs())
-
-    @property
-    def products(self):
-        conn = self.get_api_class('products')
-        return conn(**self.get_connection_kwargs())
-
-    @property
-    def inventory(self):
-        conn = self.get_api_class('inventory')
+                'API {0} is not a valid MWS API class'.format(name))
         return conn(**self.get_connection_kwargs())
 
 
-def get_merchant_connection(merchant_id):
+def get_merchant_connection(merchant_id, api_name):
     global _mws_connections
 
     if merchant_id in _mws_connections:
-        return _mws_connections[merchant_id]
+        return _mws_connections[merchant_id].get_api_class(api_name)
 
     try:
         connection = Connection(merchant_id)
@@ -97,7 +71,7 @@ def get_merchant_connection(merchant_id):
         return None
 
     _mws_connections[merchant_id] = connection
-    return _mws_connections[merchant_id]
+    return _mws_connections[merchant_id].get_api_class(api_name)
 
 
 def reset_connections():

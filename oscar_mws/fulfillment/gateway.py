@@ -176,7 +176,8 @@ def submit_fulfillment_order(fulfillment_order):
         ``UNSUBMITTED`` (not enforced).
     """
     seller_id = fulfillment_order.merchant.seller_id
-    outbound_api = get_merchant_connection(merchant_id=seller_id).outbound
+    outbound_api = get_merchant_connection(seller_id, 'outbound')
+
     try:
         outbound_api.create_fulfillment_order(
             **fulfillment_order.get_order_kwargs())
@@ -209,8 +210,7 @@ def update_fulfillment_order(fulfillment_order):
         submitted to Amazon.
     """
     outbound_api = get_merchant_connection(
-        fulfillment_order.merchant.seller_id
-    ).outbound
+        fulfillment_order.merchant.seller_id, 'outbound')
     try:
         response = outbound_api.get_fulfillment_order(
             order_id=fulfillment_order.fulfillment_id,
@@ -304,7 +304,7 @@ def update_inventory(products):
         submit_products[seller_id].add(sku)
 
     for seller_id, skus in submit_products.iteritems():
-        inventory_api = get_merchant_connection(seller_id).inventory
+        inventory_api = get_merchant_connection(seller_id, 'inventory')
 
         try:
             response = inventory_api.list_inventory_supply(skus=skus).parsed

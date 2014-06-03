@@ -121,7 +121,7 @@ def submit_product_feed(products, marketplaces, dry_run=False,
             print xml_data
             return
 
-        feeds_api = get_merchant_connection(merchant.seller_id).feeds
+        feeds_api = get_merchant_connection(merchant.seller_id, 'feeds')
         try:
             response = feeds_api.submit_feed(
                 feed=xml_data, feed_type=am.TYPE_POST_PRODUCT_DATA,
@@ -152,7 +152,7 @@ def update_feed_submission(submission):
     :raises MWError: if an error occurs requesting details from MWS
     """
     seller_id = submission.merchant.seller_id
-    feeds_api = get_merchant_connection(seller_id).feeds
+    feeds_api = get_merchant_connection(seller_id, 'feeds')
 
     try:
         response = feeds_api.get_feed_submission_list(
@@ -186,7 +186,7 @@ def update_feed_submissions(merchant):
         processing_status__in=[am.STATUS_DONE, am.STATUS_CANCELLED],
         merchant=merchant
     )
-    feeds_api = get_merchant_connection(merchant.seller_id).feeds
+    feeds_api = get_merchant_connection(merchant.seller_id, 'feeds')
     response = feeds_api.get_feed_submission_list(
         feedids=[s.submission_id for s in submissions] or None
     ).parsed
@@ -226,7 +226,7 @@ def list_submitted_feeds(merchants=None):
 
     feed_info = {}
     for merchant in merchants:
-        feeds_api = get_merchant_connection(merchant.seller_id).feeds
+        feeds_api = get_merchant_connection(merchant.seller_id, 'feeds')
         response = feeds_api.get_feed_submission_list()
 
         feed_info[merchant.seller_id] = []
@@ -250,7 +250,7 @@ def list_submitted_feeds(merchants=None):
 
 def cancel_submission(submission):
     merchant = submission.merchant
-    feeds_api = get_merchant_connection(merchant.seller_id).feeds
+    feeds_api = get_merchant_connection(merchant.seller_id, 'feeds')
     response = feeds_api.cancel_feed_submissions(
         feedids=[submission.submission_id]
     ).parsed
@@ -267,12 +267,12 @@ def cancel_submission(submission):
             submission_id=result.FeedSubmissionId,
             date_submitted=du_parse(result.SubmittedDate),
             feed_type=result.FeedType,
+            merchant=merchant,
         )
 
     if submission.processing_status != result.FeedProcessingStatus:
         return submission
 
-    submission.merchant = merchant
     submission.processing_status = result.FeedProcessingStatus
     submission.save()
     return submission
@@ -296,7 +296,7 @@ def process_submission_results(submission):
     """
     logger.info('Requesting submission result for {0}'.format(
         submission.submission_id))
-    feeds_api = get_merchant_connection(submission.merchant.seller_id).feeds
+    feeds_api = get_merchant_connection(submission.merchant.seller_id, 'feeds')
 
     try:
         response = feeds_api.get_feed_submission_result(
@@ -369,7 +369,7 @@ def update_product_identifiers(merchant, products):
     :param list products: list of Oscar products to get IDs for
     :raises MWSError: if an error occurs communicating with MWS
     """
-    prods_api = get_merchant_connection(merchant.seller_id).products
+    prods_api = get_merchant_connection(merchant.seller_id, 'products')
     for product in products:
         marketplace_ids = [
             m.marketplace_id for m in product.amazon_profile.marketplaces.all()
@@ -450,7 +450,8 @@ def switch_product_fulfillment(marketplace, products, dry_run=False):
         print xml_data
         return
 
-    feeds_api = get_merchant_connection(marketplace.merchant.seller_id).feeds
+    feeds_api = get_merchant_connection(
+        marketplace.merchant.seller_id, 'feeds')
     try:
         response = feeds_api.submit_feed(
             feed=xml_data, feed_type=am.TYPE_POST_INVENTORY_AVAILABILITY_DATA,
