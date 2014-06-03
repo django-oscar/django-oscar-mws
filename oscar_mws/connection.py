@@ -98,3 +98,12 @@ def get_merchant_connection(merchant_id):
 
     _mws_connections[merchant_id] = connection
     return _mws_connections[merchant_id]
+
+
+def reset_connections():
+    """
+    Reset the connection cache to allow for changes in connection settings
+    to take effect.
+    """
+    global _mws_connections
+    _mws_connections = {}

@@ -10,10 +10,12 @@ from django.views.generic.edit import FormMixin
 from django.utils.translation import ugettext_lazy as _
 from django.core.urlresolvers import reverse, reverse_lazy
 
+from . import forms as dashboard_forms
+
 from ..api import MWSError
 from ..feeds import gateway as feeds_gw
-from . import forms as dashboard_forms
 from ..abstract_models import STATUS_DONE
+from ..connection import reset_connections
 from ..seller.gateway import update_marketplaces
 
 from ..fulfillment import MwsFulfillmentError
@@ -393,6 +395,10 @@ class MerchantUpdateView(generic.UpdateView):
     model = MerchantAccount
     template_name = 'oscar_mws/dashboard/merchant_update.html'
     success_url = reverse_lazy('mws-dashboard:merchant-list')
+
+    def form_valid(self, form):
+        reset_connections()
+        return super(MerchantUpdateView, self).form_valid(form)
 
 
 class MerchantDeleteView(generic.DeleteView):
