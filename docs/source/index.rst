@@ -16,6 +16,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   concepts
    getting_started
    settings
    recipes
