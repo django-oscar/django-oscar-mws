@@ -2,67 +2,6 @@
 Getting Started
 ===============
 
-Basic Concepts
---------------
-
-*django-oscar-mws* (OMWS) provides a few models that represent data retrieved
-from or sent to Amazon's MWS API.
-
-
-Merchant Account
-~~~~~~~~~~~~~~~~
-
-* The merchant account represents the overall account for a region such as EU,
-  US.
-
-* A merchant account has to be linked to a stock record to be able to store
-  stock for a given product in the right place. A merchant has a 1-to-1
-  relationship to the ``partner.Partner`` model.
-
-* When saving a merchant account without a partner, a partner with name
-  ``Amazon (<MWS_REGION>)`` is looked up or created with the merchant's
-  region corresponding to ``MWS_REGION``. E.g. for a US merchant account this
-  would be ``Amazon (US)``. 
-
-
-Stock Records with MWS
-~~~~~~~~~~~~~~~~~~~~~~
-
-Using MWS for fulfillment implies that we are handling physical stock that
-requires shipping and the tracking of stock. Oscar's ``StockRecord`` model
-provides all the necessary functionality for this. However, there is a couple
-of assumptions that we have to make based on the way MWS works.
-
-
-#. Stock in MWS is available on the *merchant account* level which can be
-   mapped to a fulfillment region, e.g. Europe. As a result, we have to handle
-   one stock record per region/seller account which is done by tying a
-   ``MerchantAccount`` directly to a ``Partner``. This is automatically taken
-   care of when saving a new merchant account.
-
-
-#. Oscar, by default, tracks stock and uses a 2-stage approach for it. The
-   amount of stock is stored in ``num_in_stock``. Whenever a customer
-   successfully places an order for an item, the ``num_allocated`` on its stock
-   record is incremented. The actual amount that is available to buy is
-   calculated by subtracting the allocated stock from the number in stock::
-
-    available = stockrecord.num_in_stock - stockrecord.num_allocated
-
-   This makes tracking stock from MWS a little tricky because we can't just
-   set the ``num_in_stock`` value to the supply quantity retrieved from MWS.
-   This would ignore the allocated stock number and result in a wrong number of
-   items available to buy. Resetting ``num_allocated`` to zero when updating
-   inventory will cause issues by itself because marking an item as shipped
-   will result in decrementing ``num_in_stock`` and ``num_allocated`` by the
-   shipped quantity which would also result in wrong stock numbers.
-   We decided for a combined solution by resetting ``num_allocated`` to zero
-   when updating stock from MWS and then preventing decrementing stock when it
-   is marked as shipped if the stock record is tracking MWS stock. This
-   functionality is encapsulated in ``AmazonStockRecordMixin`` which you should
-   add to your projects ``StockRecord``.
-
-
 Setting Up The Sandbox
 ----------------------
 
@@ -111,6 +50,76 @@ HTTP server:
 
 You now have a sample shop up and running and should be able to `navigate to
 the dashboard`_ to continue the setup of your MWS credentials.
+
+
+Stock Records and MWS
+~~~~~~~~~~~~~~~~~~~~~
+
+As described in `Concepts`, integration Oscar's stock records with MWS requires
+a little additional setup. Oscar assumes that it handles the allocation and
+consumption of stock through the stock record(s) for a product. With MWS the
+available stock is actually dictated by Amazon and can't be handled the Oscar
+way. Therefore, a few extra methods on the stock record are required which are
+encapsulated in the :py:class:`AmazonStockTrackingMixin
+<oscar_mws.mixins.AmazonStockTrackingMixin>`.
+
+Making these methods available to OMWS requires you to override the ``partner``
+app in Oscar. Check the `documentation on how to customise Oscar apps`_ to get
+a more comprehensive introduction. The short version is, you need to create
+a new app in your project called ``partner`` and create a ``models.py`` module
+in it. Import all the models from the core Oscar app and add the
+:py:class:`AmazonStockTrackingMixin
+<oscar_mws.mixins.AmazonStockTrackingMixin>` to the ``StockRecord`` model
+similar to this:
+
+.. code-block:: python
+
+    from oscar.apps.address.abstract_models import AbstractPartnerAddress
+    from oscar.apps.partner.abstract_models import *
+
+    from oscar_mws.mixins import AmazonStockTrackingMixin
+
+
+    class StockRecord(AmazonStockTrackingMixin, AbstractStockRecord):
+        pass
+
+
+    class Partner(AbstractPartner):
+        pass
+
+
+    class PartnerAddress(AbstractPartnerAddress):
+        pass
+
+
+    class StockAlert(AbstractStockAlert):
+        pass
+
+
+And then add the ``partner`` app to your ``INSTALLED_APPS`` like this:
+
+.. code-block:: python 
+
+    from oscar.core import get_core_apps
+
+    INSTALLED_APPS = [
+        ...
+    ] + get_core_apps(['myproject.partner'])
+
+
+This setup provides you with a default implementation that disables updating
+the consumed stock on a MWS-enabled stock record and provides methods to update
+stock from MWS when retrieved from Amazon.
+
+.. note:: The :py:class:`AmazonStockTrackingMixin
+    <oscar_mws.mixins.AmazonStockTrackingMixin>` provides a basic
+    implementation for MWS-enabled stock. If you are using multiple different
+    types of fulfillment partners this implementation might not be sufficient
+    and you'll have to adjust the implemenation to your specific use cases.
+
+
+.. _`documentation on how to customise Oscar apps`: http://django-oscar.readthedocs.org/en/latest/howto/how_to_customise_models.html
+
 
 
 Setting Up MWS
