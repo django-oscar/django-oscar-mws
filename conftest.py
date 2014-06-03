@@ -21,10 +21,10 @@ def pytest_configure():
     DEFAULT_SETTINGS.update(OSCAR_MWS_SETTINGS)
     DEFAULT_SETTINGS['OSCAR_DEFAULT_CURRENCY'] = 'USD'
 
-    # we use this to avoid throttling by MWS when checking the API
-    INTEGRATION_WAIT_TIME = 15
-    if os.getenv('TRAVIS'):
-        INTEGRATION_WAIT_TIME = 30
+    # We use this to avoid throttling by MWS when checking the API.
+    # In the worst cases, the recovery rate is on request per minute which
+    # means setting it to a minute is playing it save.
+    INTEGRATION_WAIT_TIME = 60
 
     settings.configure(
         DATABASES={

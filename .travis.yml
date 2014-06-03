@@ -18,8 +18,8 @@ env:
     - DJANGO_VERSION=">=1.6,<1.7" PYTEST_OPTS="-m integration"
 install:
   - pip install $PIP_OPTS Django$DJANGO_VERSION
-  - pip install $PIP_OPTS . --use-mirrors
-  - pip install $PIP_OPTS -r requirements.txt --use-mirrors
+  - pip install $PIP_OPTS .
+  - pip install $PIP_OPTS -r requirements.txt
 script:
   - py.test $PYTEST_OPTS
 after_success:
