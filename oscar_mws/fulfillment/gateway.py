@@ -92,14 +92,14 @@ def _update_shipment(shipment_data, fulfillment_order):
     for fpackage in packages.get_list('member'):
         ShipmentPackage.objects.get_or_create(
             package_number=fpackage.PackageNumber,
-            tracking_number=fpackage.TrackingNumber,
+            tracking_number=getattr(fpackage, 'TrackingNumber', None),
             carrier_code=fpackage.CarrierCode,
             fulfillment_shipment=shipment,
         )
         shipping_note.append(
             '* Shipped package via {0} with tracking number {1}'.format(
                 fpackage.CarrierCode,
-                fpackage.TrackingNumber,
+                getattr(fpackage, 'TrackingNumber', None),
             )
         )
 
