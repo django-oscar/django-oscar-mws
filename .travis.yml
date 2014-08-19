@@ -8,9 +8,12 @@ env:
   global:
     - PYTEST_OPTS="--pep8 --cov oscar_mws"
     - PIP_OPTS="--download-cache $HOME/.pip-cache"
-    - secure: mbmuO3jEoovVpSO4isfv8A9SYaMITgMqgEnJSDjak3vguw+tzR5dcciWIx+GgA1xJ7bhzLA98WOQ98dmXAMnxYTe8jMnwB0UI1hiYIb7qu/aTTIghg892rmTgAWCz54ZqLCWisKPtk4Vyvw+lWR7QaXiEb1V3+9rSyjPc/fsxes=
-    - secure: qNEYG8u30LK8vc1bOzyqQTwqvjOXeE1JZXEtk2Vfse8/XZb+Lmw94ZFiIWufoQ4Lso2I1WtSvf746ko8C+pzAeU4fY97BOPh2MSgfERCyYnC2DTDhtl7chejU+L3TC2swty74A3K4BC2Q7mDug6YurqMTba6F28RqT8pgOa76BA=
-    - secure: O11ij/FngXJqi19KRVm15YT6XzPYh6EN7vHpiwZYa8rEZssCi/7IIkgfwSlVPdEWGBnguLOt27MtQhRR3CW6L9597kS5gFSpZ1WS9ttuMjQeEwRaQisrgv2BIjpd4ZB87zsWxzAn+WNoLpk/QeBW5rGpWma5DThgTEYfT7IiPmY=
+
+    # AWS credentials for MWS (open source test account)
+    - secure: "iYRLQPabW/4+tigVu28V/J/92RJw/hOUfNXk0+XBQ2ZcQLUY6J4Haq7e5PYaod88dUk9T7qPoE6R2huOCK/EvbREWIv+1ngpzpvsar5c4R3ViviticZBOkzWEsFigfYt4xt4eV08F56aQmULV0763WqRUKHOnDBPrm+B+P1WGIM="
+    - secure: "h1U+X5XqOIK/xK1A0GPHbFqZr68FNY3HqIYJIIezkOkFs8PvKyZFNxnBfYuixglikIhOnwgGyFAe1IvRmdNxB7yyNNJX3raTux5qlTsWGwA7EHr0wi74y9EhFYWv4tTdvneMXs3uJ4tvcziSpOdFY4JgMDLG7+8tQoi3TGKBl+M="
+    - secure: "FDDaeoEuenAbKsPkPue9Pc/summYE2xgEKGeyGaEwngXmAFAjpzKt8WGGekDyvUEemJ6+OKcCPQJJTIfm2rBI4Bp+32LwCp9hrfMHsJeaxCjpjj9XHmODLpYm88am0ANq4lhw8nXLc2EeA91tVZsLtLCoymIbTOJYBJqRbvDJnc="
+
   matrix:
     - DJANGO_VERSION=">=1.4,<1.5"
     - DJANGO_VERSION=">=1.5,<1.6"
