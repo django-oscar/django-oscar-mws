@@ -479,7 +479,7 @@ class AbstractFulfillmentShipment(models.Model):
     date_shipped = models.DateTimeField(_("Shipped"), null=True, blank=True)
 
     def __unicode__(self):
-        return "Shipment {0} for order {1}",
+        return "Shipment {0} for order {1}"
 
     class Meta:
         abstract = True
